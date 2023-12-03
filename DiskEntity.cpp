@@ -276,7 +276,7 @@ namespace FileSystem {
 
     INode DiskEntity::fileINodeAt(u_int64 position) {
         assert(File == getType(_fileLinker.getFileIO(position)));
-        INode::parse(_fileLinker.getFileIO(position + FileNode::INODE_START));
+        return INode::parse(_fileLinker.getFileIO(position + FileNode::INODE_START));
     }
 
 
