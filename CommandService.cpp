@@ -29,7 +29,7 @@ namespace FileSystem {
     }
 
     void CommandService::initRouterAndDocs() {
-        router["help"] = std::bind(&CommandService::help, this, std::placeholders::_1);
+        router["help"] = [this](auto && PH1) { return help(std::forward<decltype(PH1)>(PH1)); };
     }
 
     std::string CommandService::help(const std::list<std::string> &args) {
@@ -46,7 +46,8 @@ namespace FileSystem {
         } else {
             try {
                 auto targetDoc = docs.at(args.front());
-                
+                ss << "Help of command: " << args.front() << std::endl;
+                ss << targetDoc.second << std::endl;
             } catch (std::out_of_range) {
                 ss << "Cannot find doc to command: " << args.front() << std::endl;
             }
