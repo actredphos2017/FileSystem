@@ -79,7 +79,7 @@ namespace FileSystem {
 
         ByteArray toBytes() override;
 
-        [[nodiscard]] u_int64 mainSize() const;
+        u_int64 mainSize() const;
 
         static FileNode *parse(std::istream &input);
 

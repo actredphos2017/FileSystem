@@ -25,8 +25,6 @@ namespace FileSystem {
 
     class EmptyNode : IByteable {
     public:
-
-
         const static u_int64 LAST_EMPTY_START = 20;
         const static u_int64 NEXT_EMPTY_START = 28;
         const static u_int64 MIN_REQUIRE_SIZE = 36;

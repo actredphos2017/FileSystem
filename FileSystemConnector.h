@@ -2,16 +2,16 @@
 // Created by actre on 12/2/2023.
 //
 
-#ifndef FILESYSTEM_FILETERMINAL_H
-#define FILESYSTEM_FILETERMINAL_H
+#ifndef FILESYSTEM_FILESYSTEMCONNECTOR_H
+#define FILESYSTEM_FILESYSTEMCONNECTOR_H
 
 #include "DiskEntity.h"
 
 namespace FileSystem {
 
-    class FileTerminal {
+    class FileSystemConnector {
     public:
-        explicit FileTerminal(DiskEntity &diskEntity);
+        explicit FileSystemConnector(DiskEntity &diskEntity);
 
         u_int64 getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart);
 
@@ -25,4 +25,4 @@ namespace FileSystem {
 
 } // FileSystem
 
-#endif //FILESYSTEM_FILETERMINAL_H
+#endif //FILESYSTEM_FILESYSTEMCONNECTOR_H

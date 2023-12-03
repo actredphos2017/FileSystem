@@ -1,9 +1,9 @@
 #include <iostream>
 
-#include "CommandService.h"
+#include "Terminal.h"
 
 int main() {
-    FileSystem::CommandService cs{std::cout};
+    FileSystem::Terminal cs{std::cout};
 
     while (true) {
         try {

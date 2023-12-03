@@ -2,14 +2,15 @@
 // Created by actre on 12/3/2023.
 //
 
-#ifndef FILESYSTEM_COMMANDSERVICE_H
-#define FILESYSTEM_COMMANDSERVICE_H
+#ifndef FILESYSTEM_TERMINAL_H
+#define FILESYSTEM_TERMINAL_H
 
 #include <iostream>
 #include <unordered_map>
 #include <functional>
 
 #include "Utils.h"
+#include "FileSystemConnector.h"
 
 namespace FileSystem {
 
@@ -17,17 +18,22 @@ namespace FileSystem {
 
     typedef std::unordered_map<std::string, std::pair<std::string, std::string>> DocMap;
 
-    class CommandService {
+    class Terminal {
 
     public:
 
-        explicit CommandService(std::ostream &os);
+        explicit Terminal(std::ostream &os);
 
         void enterCommand(std::istream &is);
 
     private:
 
         std::ostream &os;
+
+        FileSystemConnector *connector{nullptr};
+        std::list<std::string> sessionUrl{};
+
+        std::string getUrl();
 
         Router router{};
         DocMap docs{};
@@ -41,10 +47,8 @@ namespace FileSystem {
         std::string link(const std::list<std::string> &args);
 
         std::string create(const std::list<std::string> &args);
-
-
     };
 }
 
 
-#endif //FILESYSTEM_COMMANDSERVICE_H
+#endif //FILESYSTEM_TERMINAL_H

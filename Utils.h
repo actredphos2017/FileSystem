@@ -37,7 +37,7 @@ public:
 
     ByteArray subByte(u_int64 from, u_int64 to);
 
-    u_int64 size() const;
+    [[nodiscard]] u_int64 size() const;
 
     std::vector<std::byte> _bytes{};
 };
@@ -85,6 +85,35 @@ std::pair<std::string, std::list<std::string>> commandTrim(const std::string &cm
     }
 
     return {command, args};
+}
+
+class size_format_error : std::exception {
+};
+
+u_int64 parseSizeString(const std::string &sizeString) {
+    std::size_t pos = 0;
+
+    u_int64 size = std::stoull(sizeString, &pos);
+
+    std::string unit = sizeString.substr(pos);
+
+    if (unit == "B") {
+        size *= 1;
+    } else if (unit == "KB" || unit == "K") {
+        size *= 1024;
+    } else if (unit == "MB" || unit == "M") {
+        size *= 1024 * 1024;
+    } else if (unit == "GB" || unit == "G") {
+        size *= 1024 * 1024 * 1024;
+    } else if (unit == "TB" || unit == "T") {
+        size *= 1024ULL * 1024 * 1024 * 1024;
+    } else if (unit == "PB" || unit == "P") {
+        size *= 1024ULL * 1024 * 1024 * 1024 * 1024;
+    } else {
+        throw size_format_error{};
+    }
+
+    return size;
 }
 
 namespace FileSystem {

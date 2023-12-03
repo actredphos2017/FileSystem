@@ -2,13 +2,13 @@
 // Created by actre on 12/2/2023.
 //
 
-#include "FileTerminal.h"
+#include "FileSystemConnector.h"
 
 namespace FileSystem {
 
-    FileTerminal::FileTerminal(DiskEntity &diskEntity) : _diskEntity(diskEntity) {}
+    FileSystemConnector::FileSystemConnector(DiskEntity &diskEntity) : _diskEntity(diskEntity) {}
 
-    u_int64 FileTerminal::getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart) {
+    u_int64 FileSystemConnector::getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart) {
         if (position == UNDEFINED) return UNDEFINED;
 
         u_int64 targetFilePos;
@@ -38,7 +38,7 @@ namespace FileSystem {
     }
 
 
-    u_int64 FileTerminal::getFilePos(const std::string &_filePath) {
+    u_int64 FileSystemConnector::getFilePos(const std::string &_filePath) {
         auto filePath = checkPath(_filePath);
         assert(filePath[0] == '/');
 
@@ -61,7 +61,7 @@ namespace FileSystem {
         return targetPos;
     }
 
-    std::list<std::pair<u_int64, INode>> FileTerminal::getDir(const std::string &_filePath) {
+    std::list<std::pair<u_int64, INode>> FileSystemConnector::getDir(const std::string &_filePath) {
         auto filePath = checkPath(_filePath);
         u_int64 targetPath;
         if (filePath == "/")

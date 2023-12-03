@@ -59,12 +59,12 @@ namespace FileSystem {
 
         // 添加新的文件（空间已满则添加失败，返回 false）
         u_int64 addFile(const INode& iNode, ByteArray byteArray);
-
-        // 更新某个位置的文件，返回新的文件位置（若改变），空间已满，更新失败返回 nullptr
-        u_int64 *update(u_int64 originLoc, const FileNode &newFile);
-
-        // 全盘优化磁盘碎片
-        void optimize();
+//
+//        // 更新某个位置的文件，返回新的文件位置（若改变），空间已满，更新失败返回 nullptr
+//        u_int64 *update(u_int64 originLoc, const FileNode &newFile);
+//
+//        // 全盘优化磁盘碎片
+//        void optimize();
 
         INode fileINodeAt(u_int64 position);
 
