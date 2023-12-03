@@ -1,0 +1,39 @@
+//
+// Created by actre on 11/24/2023.
+//
+
+#include "EmptyNode.h"
+
+namespace FileSystem {
+
+
+    EmptyNode::EmptyNode(u_int64 lastNode, u_int64 nextNode, u_int64 emptySize, u_int64 lastEmpty, u_int64 nextEmpty) :
+            lastNode(lastNode),
+            nextNode(nextNode),
+            emptySize(emptySize),
+            lastEmpty(lastEmpty),
+            nextEmpty(nextEmpty) {}
+
+    EmptyNode *EmptyNode::parse(std::istream &input) {
+        ByteArray().read(input, 4, false);
+        return new EmptyNode(
+                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
+                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
+                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
+                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
+                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false))
+        );
+    }
+
+    ByteArray EmptyNode::toBytes() {
+        return ByteArray()
+                .append(reinterpret_cast<const std::byte *>("EMPT"), 4)
+                .append(IByteable::toBytes(lastNode))
+                .append(IByteable::toBytes(nextNode))
+                .append(IByteable::toBytes(emptySize))
+                .append(IByteable::toBytes(lastEmpty))
+                .append(IByteable::toBytes(nextEmpty));
+    }
+
+
+} // FileSystem
