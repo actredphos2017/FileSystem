@@ -85,4 +85,5 @@ namespace FileSystem {
     std::list<std::string> splitString(const std::string &input, char delimiter);
 
     std::string checkPath(const std::string &path);
+
 }

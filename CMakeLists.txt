@@ -19,5 +19,7 @@ add_executable(
         FileSystemConnector.h
         Terminal.cpp
         Terminal.h
+        SHA256.cpp
+        SHA256.h
         main.cpp
 )
