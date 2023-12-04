@@ -83,10 +83,12 @@ namespace FileSystem {
             DiskEntity diskEntity{args.front()};
             connector = new FileSystemConnector{diskEntity};
             os << "链接成功！" << endl;
-        } catch (std::exception &e) {
-            os << "发生异常:" << endl;
+        } catch (Error &e) {
+            os << "发生异常: " << endl;
             os << e.what() << endl;
         }
+
+
     }
 
     void Terminal::create(const std::list<std::string> &args) {
@@ -99,6 +101,7 @@ namespace FileSystem {
         std::string sizeStr = *(iter++);
         std::string rootPassword = *iter;
 
+
         try {
             u_int64 size = parseSizeString(sizeStr);
 
@@ -107,7 +110,7 @@ namespace FileSystem {
             os << "创建成功！" << endl;
         } catch (size_format_error &) {
             os << "非法的大小输入: " << sizeStr << endl;
-        } catch (std::exception &e) {
+        } catch (Error &e) {
             os << "发生异常:" << endl;
             os << e.what() << endl;
         }

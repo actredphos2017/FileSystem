@@ -12,9 +12,11 @@ namespace FileSystem {
 
     class FileLinker {
     public:
-        explicit FileLinker(std::string_view path);
+        explicit FileLinker(const std::string &path);
 
         void resize(u_int64 size);
+
+        u_int64 size();
 
         std::fstream &getFileIO(u_int64 position = 0, u_int64 offset = 0);
 

@@ -7,6 +7,7 @@
 #include <utility>
 #include "FileNode.h"
 #include "EmptyNode.h"
+#include "SHA256.h"
 
 namespace FileSystem {
 
@@ -26,15 +27,14 @@ namespace FileSystem {
                         // 空闲链表头地址
                 .append(IByteable::toBytes(FILE_INDEX_START))
 
-                        // 用户表地址
-                .append(IByteable::toBytes(UNDEFINED))
+                        // 超级用户密码
+                .append(reinterpret_cast<const std::byte *>(Ly::Sha256::getInstance().getHexMessageDigest(
+                        root_password).data()), 32)
 
                         // 文件数据（初始时全空）
                 .append(EmptyNode(UNDEFINED, UNDEFINED, diskSize - FILE_INDEX_START, UNDEFINED, UNDEFINED).toBytes());
 
-        _fileLinker.getFileIO() << prefix.toBytes();
-
-        createEmptyUserTable(root_password);
+        _fileLinker.getFileIO().write(reinterpret_cast<const char *>(prefix.toBytes()),(std::streamsize) prefix.size());
     }
 
     DiskEntity::DiskEntity(u_int64 size, const std::string &path, const std::string &root_password) : _fileLinker(
@@ -44,9 +44,7 @@ namespace FileSystem {
     }
 
     DiskEntity::DiskEntity(const std::string &path) : _fileLinker(path) {
-        if (!checkFormat()) {
-            throw std::exception{};
-        }
+        checkFormat();
     }
 
 
@@ -84,7 +82,8 @@ namespace FileSystem {
             targetFile.expansionSize = emptySize;
             targetFile.lastNode = emptyNode->lastNode;
             targetFile.nextNode = emptyNode->nextNode;
-            assert(targetFile.mainSize() == emptyNode->emptySize);
+            assert(targetFile.mainSize() == emptyNode->emptySize, "DiskEntity::addFile",
+                   "扩容后文件大小不等于空容量大小");
             _fileLinker.write(lastEmptyNodeNextEmptyPosWritePos, 0, IByteable::toBytes(emptyNode->nextEmpty));
             _fileLinker.write(thisEmptyNodePos, 0, targetFile.toBytes());
         } else {
@@ -96,7 +95,6 @@ namespace FileSystem {
             auto nextNode = emptyNode->nextNode;
 
             if (nextNode != UNDEFINED) {
-                assert(FileSystem::Empty != getType(_fileLinker.getFileIO(nextNode)));
                 _fileLinker.write(nextNode, FileSystem::LAST_NODE_START, IByteable::toBytes(newEmptyNodePos));
             }
 
@@ -139,13 +137,12 @@ namespace FileSystem {
 
             auto nextEmpty = emptyAt(file->nextNode);
 
-            assert(empty != nullptr && nextEmpty != nullptr);
+            assert(empty != nullptr && nextEmpty != nullptr, "DiskEntity::removeFileAt", "1");
 
             // 设置下一个空节点的 上一个空节点位置
             u_int64 nextEmptyNextEmptyPos = nextEmpty->nextEmpty;
 
             if (nextEmptyNextEmptyPos != UNDEFINED) {
-                assert(FileSystem::Empty == getType(_fileLinker.getFileIO(nextEmptyNextEmptyPos)));
                 _fileLinker.write(nextEmpty->nextEmpty, EmptyNode::LAST_EMPTY_START, IByteable::toBytes(emptyPos));
             }
 
@@ -153,12 +150,10 @@ namespace FileSystem {
             u_int64 nextNodePos = nextEmpty->nextNode;
 
             if (nextNodePos != UNDEFINED) {
-                assert(FileSystem::Empty != getType(_fileLinker.getFileIO(nextNodePos)));
                 _fileLinker.write(nextNodePos, FileSystem::LAST_NODE_START, IByteable::toBytes(emptyPos));
             }
 
             // 设置这个节点的 下一个节点位置
-            assert(FileSystem::Empty == getType(_fileLinker.getFileIO(file->lastNode)));
             empty->nextNode = nextNodePos;
 
             // 设置这个节点的 下一个空节点位置
@@ -275,8 +270,20 @@ namespace FileSystem {
     }
 
     INode DiskEntity::fileINodeAt(u_int64 position) {
-        assert(File == getType(_fileLinker.getFileIO(position)));
+        assert(File == getType(_fileLinker.getFileIO(position)), "DiskEntity::fileINodeAt",
+               "常熟获取的 INode 不为文件");
         return INode::parse(_fileLinker.getFileIO(position + FileNode::INODE_START));
+    }
+
+    void DiskEntity::checkFormat() {
+        auto &io = _fileLinker.getFileIO();
+        auto prefix = std::string{reinterpret_cast<const char *>(ByteArray().read(io, 8, false).toBytes()), 8};
+        assert(prefix == "SakulinF", "DiskEntity::checkFormat", std::format("系统声明错误：{}", prefix));
+
+        auto size = IByteable::fromBytes<u_int64>(ByteArray().read(io, 8, false));
+
+        assert(size == _fileLinker.size(), "DiskEntity::checkFormat",
+               std::format("大小不相等：文件系统声明 {} 与 实际大小 {}", size, _fileLinker.size()));
     }
 
 

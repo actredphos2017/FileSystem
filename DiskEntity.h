@@ -34,9 +34,9 @@ namespace FileSystem {
 
     class DiskEntity {
 
-        const u_int64 ROOT_START = u_int64{16};
-        const u_int64 EMPTY_START = u_int64{24};
-        const u_int64 FILE_INDEX_START = u_int64{40};
+        const u_int64 ROOT_START = 16;
+        const u_int64 EMPTY_START = 24;
+        const u_int64 FILE_INDEX_START = 64;
 
     public:
         // 创建新的虚拟磁盘
@@ -73,8 +73,7 @@ namespace FileSystem {
 
     private:
 
-        void createEmptyUserTable(const std::string& rootPassword);
-        bool checkFormat();
+        void checkFormat();
 
         u_int64 findLastEmpty(u_int64 nowNode);
         u_int64 findNextEmpty(u_int64 nowNode);

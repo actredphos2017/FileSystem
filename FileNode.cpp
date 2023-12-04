@@ -56,7 +56,7 @@ namespace FileSystem {
     }
 
     u_int64 FileNode::mainSize() const {
-        assert(data.size() == inode.size);
+        assert(data.size() == inode.size, "FileNode::mainSize");
         return FileNode::INODE_START + inode.getSize() + FileNode::EXPANSION_OCC + inode.size + expansionSize;
     }
 
@@ -68,7 +68,7 @@ namespace FileSystem {
                 .append(inode.toBytes())
                 .append(IByteable::toBytes(expansionSize))
                 .append(data);
-        assert(res.size() + expansionSize == mainSize());
+        assert(res.size() + expansionSize == mainSize(), "FileNode::toBytes");
         return res;
     }
 

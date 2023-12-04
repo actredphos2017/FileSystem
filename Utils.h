@@ -10,17 +10,10 @@
 #include <vector>
 #include <list>
 #include <sstream>
+#include <format>
 
 typedef unsigned long long u_int64;
 
-class assert_error : std::exception {
-};
-
-inline void assert(bool require) {
-    if (!require) {
-        throw assert_error{};
-    }
-}
 
 class ByteArray {
 public:
@@ -86,4 +79,25 @@ namespace FileSystem {
 
     std::string checkPath(const std::string &path);
 
+    class Error : std::runtime_error {
+    public:
+        Error(const std::string &func, const std::string &reason) :
+                msg(std::format("错误发生在：{}, 原因：{}", func, reason)),
+                std::runtime_error(std::format("错误发生在：{}, 原因：{}", func, reason)) {}
+
+
+        [[nodiscard]] const char *what() const noexcept override {
+            return msg.c_str();
+        }
+
+    private:
+        std::string msg;
+    };
+
+}
+
+inline void assert(bool require, const std::string &func = "assert", const std::string &reason = "断言失败") {
+    if (!require) {
+        throw FileSystem::Error{func, reason};
+    }
 }

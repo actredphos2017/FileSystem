@@ -40,7 +40,7 @@ namespace FileSystem {
 
     u_int64 FileSystemConnector::getFilePos(const std::string &_filePath) {
         auto filePath = checkPath(_filePath);
-        assert(filePath[0] == '/');
+        assert(filePath[0] == '/', "FileSystemConnector::getFilePos");
 
         std::list<std::string> pathParts = splitString(filePath, '/');
 
@@ -56,7 +56,7 @@ namespace FileSystem {
         }
 
         if (isRoot)
-            throw std::exception{};
+            throw Error("FileSystemConnector::getFilePos", "尝试访问根目录文件");
 
         return targetPos;
     }
@@ -70,7 +70,7 @@ namespace FileSystem {
             u_int64 pathPos = getFilePos(filePath);
             if (pathPos == UNDEFINED) return {};
             auto pathFile = _diskEntity.fileAt(pathPos);
-            assert(pathFile->inode.getType() == INode::Path);
+            assert(pathFile->inode.getType() == INode::Path, "FileSystemConnector::getDir");
             targetPath = IByteable::fromBytes<u_int64>(pathFile->data);
         }
 
