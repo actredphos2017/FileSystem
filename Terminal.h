@@ -14,7 +14,7 @@
 
 namespace FileSystem {
 
-    typedef std::unordered_map<std::string, std::function<std::string(const std::list<std::string> &)>> Router;
+    typedef std::unordered_map<std::string, std::function<void(const std::list<std::string> &)>> Router;
 
     typedef std::unordered_map<std::string, std::pair<std::string, std::string>> DocMap;
 
@@ -42,11 +42,11 @@ namespace FileSystem {
 
         std::string localPrefixBuilder();
 
-        std::string help(const std::list<std::string> &args);
+        void help(const std::list<std::string> &args);
 
-        std::string link(const std::list<std::string> &args);
+        void link(const std::list<std::string> &args);
 
-        std::string create(const std::list<std::string> &args);
+        void create(const std::list<std::string> &args);
     };
 }
 

@@ -5,6 +5,7 @@
 
 #include "Terminal.h"
 
+using std::endl;
 
 namespace FileSystem {
     Terminal::Terminal(std::ostream &os) : os(os) {
@@ -18,86 +19,80 @@ namespace FileSystem {
 
         auto decompose = commandTrim(cmd);
 
-        std::string response{};
+        if (decompose.first.empty()) return;
 
         try {
             auto target = router.at(decompose.first);
-            response = target(decompose.second);
+            target(decompose.second);
         } catch (std::out_of_range &) {
-            response = "Unknown command: " + decompose.first;
+            os << "未知命令：" << decompose.first << endl;
         }
-
-        os << response;
     }
 
     void Terminal::initRouterAndDocs() {
-        router["help"] = std::bind(&Terminal::help, this, std::placeholders::_1);
+        router["help"] = [this](const auto &args) { help(args); };
 
-        router["link"] = std::bind(&Terminal::link, this, std::placeholders::_1);
+        router["link"] = [this](const auto &args) { link(args); };
         docs["link"] = {
-                "Link Terminal to the targeted virtual file system file.",
-                "link [File System Path]"
-                "Use this command to let connector link to a saved file system file."
-                "You can use this command like \"link D:/mySavedFileSystem.sfs\" in Windows."
-                "System will not work without an existed file system."
-                "If there is not an existed file, just enter \"create\" command to create one."
-                "Enter \"help create\" to show more detail."
+                "链接到目标文件系统。",
+                "link [文件系统路径]"
+                "使用这个命令让终端连接到一个文件系统。"
+                "你可以像这样使用该命令： \"link D:/mySavedFileSystem.sfs\""
+                "如果没有链接文件系统，系统无法工作。"
+                "如果没有存在的文件系统，可通过 \"create\" 命令来创建一个。"
+                "输入 \"help create\" 查看更多信息。"
         };
 
-        router["create"] = std::bind(&Terminal::create, this, std::placeholders::_1);
+        router["create"] = [this](const auto &args) { create(args); };
         docs["create"] = {
-                "Create a new file system.",
-                "create [File System Path] [Size] [Super User Password]"
-                "Use this command to create a new File System."
-                "You can use this command like \"create D:/myFileSystem.sfs 512MB abc123\" in Windows."
-                "File System need more than 8KB to work."
-                "Terminal will automatically link file."
+                "创建一个新的文件系统\n",
+                "create [文件系统创建路径] [文件系统大小] [管理员密码]\n"
+                "使用这个命令来创建一个新的文件系统\n"
+                "你可以像这样使用该命令 \"create D:/myFileSystem.sfs 512MB abc123\"\n"
+                "文件系统至少需要 8KB 大小才能工作\n"
+                "创建完成后终端将自动连接该文件系统\n"
         };
     }
 
-    std::string Terminal::help(const std::list<std::string> &args) {
-
-        std::stringstream ss;
-
+    void Terminal::help(const std::list<std::string> &args) {
         if (args.empty()) {
-            ss << "===== HELP =====" << std::endl;
             for (const auto &doc: docs) {
-                ss << "  - " << doc.first << "\t:" << doc.second.first << std::endl;
+                os << "  - " << doc.first << "\t:" << doc.second.first << endl;
             }
-            ss << std::endl;
-            ss << "Enter help [Target Command] to show more details of target command." << std::endl;
+            os << endl;
+            os << "输入 \"help [目标命令]\" 来获取目标命令的详细用法。" << endl;
         } else {
             try {
                 auto targetDoc = docs.at(args.front());
-                ss << "Help of command: " << args.front() << std::endl;
-                ss << targetDoc.second << std::endl;
+                os << "指令 " << args.front() << " 的详细信息：" << endl;
+                os << targetDoc.second << endl;
             } catch (std::out_of_range &) {
-                ss << "Cannot find doc to command: " << args.front() << std::endl;
+                os << "无法找到有关指令 " << args.front() << " 的文档。" << endl;
             }
         }
-
-        return ss.str();
     }
 
-    std::string Terminal::link(const std::list<std::string> &args) {
+    void Terminal::link(const std::list<std::string> &args) {
         if (args.size() != 1) {
-            return "Commend require and take only one argument to run!"
-                   "Show more detail: help link";
+            os << "指令需要且仅需要一个参数才能执行！" << endl;
+            os << "使用 help link 查看更多信息" << endl;
+            return;
         }
 
         try {
             DiskEntity diskEntity{args.front()};
             connector = new FileSystemConnector{diskEntity};
-            return "Link Successfully!";
+            os << "链接成功！" << endl;
         } catch (std::exception &e) {
-            return std::string{"Exception Happened! What:\n"} + e.what();
+            os << "发生异常:" << endl;
+            os << e.what() << endl;
         }
     }
 
-    std::string Terminal::create(const std::list<std::string> &args) {
+    void Terminal::create(const std::list<std::string> &args) {
         if (args.size() != 3) {
-            return "Commend require and take only 3 argument to run!"
-                   "Show more detail: help create";
+            os << "指令需要三个参数才能执行\n" << endl;
+            os << "使用 help create 查看更多信息" << endl;
         }
         auto iter = args.begin();
         std::string path = *(iter++);
@@ -109,22 +104,23 @@ namespace FileSystem {
 
             DiskEntity diskEntity{size, path, rootPassword};
             connector = new FileSystemConnector{diskEntity};
-            return "Create Successfully!";
+            os << "创建成功！" << endl;
         } catch (size_format_error &) {
-            return "Illegal size input: " + sizeStr;
+            os << "非法的大小输入: " << sizeStr << endl;
         } catch (std::exception &e) {
-            return std::string{"Exception Happened! What:\n"} + e.what();
+            os << "发生异常:" << endl;
+            os << e.what() << endl;
         }
     }
 
     std::string Terminal::localPrefixBuilder() {
-        std::stringstream ss{"\n"};
+        std::stringstream ss;
         if (connector == nullptr) {
             ss << "UNLINK > ";
         } else {
             ss << getUrl() << " > ";
         }
-        return  ss.str();
+        return ss.str();
     }
 
     std::string Terminal::getUrl() {
