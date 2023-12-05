@@ -34,7 +34,9 @@ namespace FileSystem {
                         // 文件数据（初始时全空）
                 .append(EmptyNode(UNDEFINED, UNDEFINED, diskSize - FILE_INDEX_START, UNDEFINED, UNDEFINED).toBytes());
 
-        _fileLinker.getFileIO().write(reinterpret_cast<const char *>(prefix.toBytes()),(std::streamsize) prefix.size());
+        _fileLinker.doWithFileO(0, 0, [&](std::ofstream &it) {
+            it.write(reinterpret_cast<const char *>(prefix.toBytes()), (std::streamsize) prefix.size());
+        });
     }
 
     DiskEntity::DiskEntity(u_int64 size, const std::string &path, const std::string &root_password) : _fileLinker(
@@ -110,12 +112,26 @@ namespace FileSystem {
 
     EmptyNode *DiskEntity::emptyAt(u_int64 position) {
         if (position == UNDEFINED) return nullptr;
-        return EmptyNode::parse(_fileLinker.getFileIO(position));
+
+        EmptyNode *node;
+
+        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
+            node = EmptyNode::parse(it);
+        });
+
+        return node;
     }
 
     FileNode *DiskEntity::fileAt(u_int64 position) {
         if (position == UNDEFINED) return nullptr;
-        return FileNode::parse(_fileLinker.getFileIO(position));
+
+        FileNode *node;
+
+        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
+            node = FileNode::parse(it);
+        });
+
+        return node;
     }
 
     void DiskEntity::removeFileAt(u_int64 position) {
@@ -127,8 +143,16 @@ namespace FileSystem {
         u_int64 emptyPos;
         EmptyNode *empty;
 
-        bool lastNodeTypeIsEmpty = FileSystem::Empty == getType(_fileLinker.getFileIO(file->lastNode));
-        bool nextNodeTypeIsEmpty = FileSystem::Empty == getType(_fileLinker.getFileIO(file->nextNode));
+        bool lastNodeTypeIsEmpty;
+        bool nextNodeTypeIsEmpty;
+
+        _fileLinker.doWithFileI(file->lastNode, 0, [&](std::ifstream &it) {
+            lastNodeTypeIsEmpty = FileSystem::Empty == getType(it);
+        });
+
+        _fileLinker.doWithFileI(file->nextNode, 0, [&](std::ifstream &it) {
+            nextNodeTypeIsEmpty = FileSystem::Empty == getType(it);
+        });
 
         if (lastNodeTypeIsEmpty && nextNodeTypeIsEmpty) { // 11
 
@@ -245,14 +269,27 @@ namespace FileSystem {
     }
 
     u_int64 DiskEntity::root() {
-        return _fileLinker.readAt<u_int64>(0, DiskEntity::ROOT_START);
+        std::cout << "Start Read!" << std::endl;
+        auto a = _fileLinker.readAt<u_int64>(0, DiskEntity::ROOT_START);
+        std::cout << "End Read!" << std::endl;
+
+        return a;
     }
 
     u_int64 DiskEntity::findLastEmpty(u_int64 nowNode) {
 
         u_int64 res = nowNode;
 
-        while (FileSystem::Empty != getType(_fileLinker.getFileIO(res)) && res != UNDEFINED) {
+        while (res != UNDEFINED) {
+
+            bool flag;
+
+            _fileLinker.doWithFileI(res, 0, [&](std::ifstream &it) {
+                flag = FileSystem::Empty != getType(it);
+            });
+
+            if (!flag) break;
+
             res = _fileLinker.readAt<u_int64>(res, FileSystem::LAST_NODE_START);
         }
 
@@ -262,7 +299,16 @@ namespace FileSystem {
     u_int64 DiskEntity::findNextEmpty(u_int64 nowNode) {
         u_int64 res = nowNode;
 
-        while (FileSystem::Empty != getType(_fileLinker.getFileIO(res)) && res != UNDEFINED) {
+        while (res != UNDEFINED) {
+
+            bool flag;
+
+            _fileLinker.doWithFileI(res, 0, [&](std::ifstream &it) {
+                flag = FileSystem::Empty != getType(it);
+            });
+
+            if (!flag) break;
+
             res = _fileLinker.readAt<u_int64>(res, FileSystem::NEXT_NODE_START);
         }
 
@@ -270,20 +316,43 @@ namespace FileSystem {
     }
 
     INode DiskEntity::fileINodeAt(u_int64 position) {
-        assert(File == getType(_fileLinker.getFileIO(position)), "DiskEntity::fileINodeAt",
-               "常熟获取的 INode 不为文件");
-        return INode::parse(_fileLinker.getFileIO(position + FileNode::INODE_START));
+
+        bool isFile;
+
+        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
+            isFile = File == getType(it);
+        });
+
+        assert(isFile, "DiskEntity::fileINodeAt", "尝试获取的 INode 源不为文件");
+
+        INode *iNode;
+
+        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
+            *iNode = INode::parse(it);
+        });
+
+        return *iNode;
     }
 
     void DiskEntity::checkFormat() {
-        auto &io = _fileLinker.getFileIO();
-        auto prefix = std::string{reinterpret_cast<const char *>(ByteArray().read(io, 8, false).toBytes()), 8};
+
+        bool sizeGood;
+
+        std::string prefix;
+        u_int64 stateSize;
+        auto fileSize = _fileLinker.size();
+
+        _fileLinker.doWithFileI(0, 0, [&](std::ifstream &it) {
+            prefix = std::string{reinterpret_cast<const char *>(ByteArray().read(it, 8, false).toBytes()), 8};
+
+            stateSize = IByteable::fromBytes<u_int64>(ByteArray().read(it, 8, false));
+            sizeGood = stateSize == fileSize;
+        });
+
         assert(prefix == "SakulinF", "DiskEntity::checkFormat", std::format("系统声明错误：{}", prefix));
 
-        auto size = IByteable::fromBytes<u_int64>(ByteArray().read(io, 8, false));
-
-        assert(size == _fileLinker.size(), "DiskEntity::checkFormat",
-               std::format("大小不相等：文件系统声明 {} 与 实际大小 {}", size, _fileLinker.size()));
+        assert(sizeGood, "DiskEntity::checkFormat",
+               std::format("大小不相等：文件系统声明 {} 与 实际大小 {}", stateSize, fileSize));
     }
 
 

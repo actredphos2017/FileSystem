@@ -30,13 +30,13 @@ namespace FileSystem {
      */
 
 
-    const u_int64 UNDEFINED = u_int64{0};
+    const u_int64 UNDEFINED = 0;
 
     class DiskEntity {
 
-        const u_int64 ROOT_START = 16;
-        const u_int64 EMPTY_START = 24;
-        const u_int64 FILE_INDEX_START = 64;
+        const static u_int64 ROOT_START = 16;
+        const static u_int64 EMPTY_START = 24;
+        const static u_int64 FILE_INDEX_START = 64;
 
     public:
         // 创建新的虚拟磁盘
