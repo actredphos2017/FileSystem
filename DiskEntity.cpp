@@ -39,13 +39,13 @@ namespace FileSystem {
         });
     }
 
-    DiskEntity::DiskEntity(u_int64 size, const std::string &path, const std::string &root_password) : _fileLinker(
-            path) {
+    DiskEntity::DiskEntity(u_int64 size, std::string path, const std::string &root_password) : _fileLinker(std::move(path)) {
+        _fileLinker.create();
         _fileLinker.resize(size);
-        this->format(size, root_password);
+        format(size, root_password);
     }
 
-    DiskEntity::DiskEntity(const std::string &path) : _fileLinker(path) {
+    DiskEntity::DiskEntity(std::string path) : _fileLinker(std::move(path)) {
         checkFormat();
     }
 
@@ -269,11 +269,7 @@ namespace FileSystem {
     }
 
     u_int64 DiskEntity::root() {
-        std::cout << "Start Read!" << std::endl;
-        auto a = _fileLinker.readAt<u_int64>(0, DiskEntity::ROOT_START);
-        std::cout << "End Read!" << std::endl;
-
-        return a;
+        return _fileLinker.readAt<u_int64>(0, DiskEntity::ROOT_START);
     }
 
     u_int64 DiskEntity::findLastEmpty(u_int64 nowNode) {

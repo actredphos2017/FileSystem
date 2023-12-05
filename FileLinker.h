@@ -15,34 +15,26 @@ namespace FileSystem {
     public:
         explicit FileLinker(std::string path);
 
-        bool exist();
+        bool exist() const;
 
-        bool createIfNotExist();
+        bool create() const;
 
-        bool createCompulsory();
+        void resize(u_int64 size) const;
 
-        void resize(u_int64 size);
+        u_int64 size() const;
 
-        u_int64 size();
+        void doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const;
 
-        void doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f);
+        void doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const;
 
-        void doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f);
-
-        void write(u_int64 position, u_int64 offset, ByteArray byteArray);
+        void write(u_int64 position, u_int64 offset, ByteArray byteArray) const;
 
         template<class T>
-        T readAt(u_int64 position, u_int64 offset) {
-            T data;
-            doWithFileI(position, offset, [&](std::ifstream &file) {
-                file.read(reinterpret_cast<char *>(&data), sizeof(T));
-            });
-            return data;
-        }
+        T readAt(u_int64 position, u_int64 offset);
 
         ~FileLinker();
 
-    private:
+        // private:
         std::string path;
     };
 

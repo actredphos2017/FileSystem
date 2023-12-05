@@ -102,3 +102,7 @@ inline void assert(bool require, const std::string &func = "assert", const std::
         throw FileSystem::Error{func, reason};
     }
 }
+
+
+using std::endl;
+using std::cout;

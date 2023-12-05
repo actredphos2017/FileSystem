@@ -40,10 +40,10 @@ namespace FileSystem {
 
     public:
         // 创建新的虚拟磁盘
-        DiskEntity(u_int64 size, const std::string& path, const std::string& root_password);
+        DiskEntity(u_int64 size, std::string path, const std::string &root_password);
 
         // 加载虚拟磁盘
-        explicit DiskEntity(const std::string& path);
+        explicit DiskEntity(std::string path);
 
         // 获取虚拟磁盘的根目录头文件（不存在则返回 nullptr）
         u_int64 root();
@@ -58,7 +58,7 @@ namespace FileSystem {
         void removeFileAt(u_int64 position);
 
         // 添加新的文件（空间已满则添加失败，返回 false）
-        u_int64 addFile(const INode& iNode, ByteArray byteArray);
+        u_int64 addFile(const INode &iNode, ByteArray byteArray);
 //
 //        // 更新某个位置的文件，返回新的文件位置（若改变），空间已满，更新失败返回 nullptr
 //        u_int64 *update(u_int64 originLoc, const FileNode &newFile);
@@ -69,13 +69,14 @@ namespace FileSystem {
         INode fileINodeAt(u_int64 position);
 
         // 格式化磁盘
-        void format(u_int64 diskSize, const std::string& rootPassword);
+        void format(u_int64 diskSize, const std::string &rootPassword);
 
-    private:
+ //   private:
 
         void checkFormat();
 
         u_int64 findLastEmpty(u_int64 nowNode);
+
         u_int64 findNextEmpty(u_int64 nowNode);
 
         FileLinker _fileLinker;

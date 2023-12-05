@@ -148,4 +148,3 @@ namespace FileSystem {
         return trimmedPath;
     }
 }
-

@@ -10,7 +10,7 @@
 #include <functional>
 
 #include "Utils.h"
-#include "FileSystemConnector.h"
+#include "FSController.h"
 
 namespace FileSystem {
 
@@ -30,7 +30,7 @@ namespace FileSystem {
 
         std::ostream &os;
 
-        FileSystemConnector *connector{nullptr};
+        FSController controller{};
         std::list<std::string> sessionUrl{};
 
         std::string getUrl();
@@ -52,7 +52,7 @@ namespace FileSystem {
 
         void ls(const std::list<std::string> &args);
 
-
+        void dbpg(const std::list<std::string> &args);
     };
 }
 

@@ -2,16 +2,21 @@
 // Created by actre on 12/2/2023.
 //
 
-#ifndef FILESYSTEM_FILESYSTEMCONNECTOR_H
-#define FILESYSTEM_FILESYSTEMCONNECTOR_H
+#ifndef FILESYSTEM_FSCONTROLLER_H
+#define FILESYSTEM_FSCONTROLLER_H
 
 #include "DiskEntity.h"
 
 namespace FileSystem {
 
-    class FileSystemConnector {
+    class FSController {
     public:
-        explicit FileSystemConnector(DiskEntity &diskEntity);
+
+        bool good() const;
+
+        void create(u_int64 size, std::string path, const std::string &root_password);
+
+        void setPath(std::string path);
 
         u_int64 getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart);
 
@@ -19,10 +24,9 @@ namespace FileSystem {
 
         std::list<std::pair<u_int64, INode>> getDir(const std::string &filePath);
 
-    private:
-        DiskEntity &_diskEntity;
+        DiskEntity *_diskEntity{nullptr};
     };
 
 } // FileSystem
 
-#endif //FILESYSTEM_FILESYSTEMCONNECTOR_H
+#endif //FILESYSTEM_FSCONTROLLER_H

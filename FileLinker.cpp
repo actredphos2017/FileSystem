@@ -6,69 +6,80 @@
 
 #include <fstream>
 #include <utility>
+#include <filesystem>
 
 namespace FileSystem {
 
+    FileLinker::FileLinker(std::string path): path{std::move(path)} {}
 
-    FileLinker::FileLinker(std::string path) : path(std::move(path)) {}
-
-    bool FileLinker::exist() {
-        std::ifstream file(path);
-        return file.good();
+    bool FileLinker::exist() const {
+        return std::filesystem::exists(path);
     }
 
-    bool FileLinker::createIfNotExist() {
-        if (!exist()) {
-            std::ofstream file(path, std::ios::binary);
-            return file.good();
-        }
-        return true;
+    bool FileLinker::create() const {
+        if (exist()) std::filesystem::remove(path);
+        std::ofstream file(path, std::ios::app | std::ios::out);
+        auto good = file.good();
+        file.close();
+        return good;
     }
 
-    bool FileLinker::createCompulsory() {
-        std::ofstream file(path, std::ios::binary);
-        return file.good();
+    void FileLinker::resize(u_int64 newSize) const {
+        std::filesystem::resize_file(path, newSize);
     }
 
-    void FileLinker::resize(u_int64 newSize) {
-        std::ofstream file(path, std::ios::binary | std::ios::ate);
-        file.seekp(static_cast<std::streampos>(newSize - 1));
-        file.put('\0');
+    u_int64 FileLinker::size() const {
+        return std::filesystem::file_size(path);
     }
 
-    u_int64 FileLinker::size() {
-        std::ifstream file(path, std::ios::binary | std::ios::ate);
-        return static_cast<u_int64>(file.tellg());
-    }
+    void FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const {
+        std::ifstream file{path, std::ios::in};
 
-    void FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) {
-        std::ifstream file(path, std::ios::binary);
-        if (file) {
+        if (file.is_open()) {
             file.seekg(static_cast<std::streampos>(position + offset), std::ios::beg);
             f(file);
             file.close();
         } else {
-            std::cerr << "Error opening file for input." << std::endl;
+            throw Error("FileLinker::doWithFileI", "文件打开失败");
         }
     }
 
-    void FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) {
-        std::ofstream file(path, std::ios::binary);
-        if (file) {
+    void FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const {
+        std::ofstream file(path, std::ios::out | std::ios::in | std::ios::binary);
+
+        if (file.is_open()) {
             file.seekp(static_cast<std::streampos>(position + offset), std::ios::beg);
             f(file);
             file.close();
         } else {
-            std::cerr << "Error opening file for output." << std::endl;
+            throw Error("FileLinker::doWithFileO", "文件打开失败");
         }
     }
 
-    void FileLinker::write(u_int64 position, u_int64 offset, ByteArray byteArray) {
+    void FileLinker::write(u_int64 position, u_int64 offset, ByteArray byteArray) const {
         doWithFileO(position, offset, [&](std::ofstream &file) {
             file.write(reinterpret_cast<const char *>(byteArray.toBytes()),
                        static_cast<std::streamsize>(byteArray.size()));
         });
     }
+
+    template<class T>
+    T FileLinker::readAt(u_int64 position, u_int64 offset) {
+        char * data;
+        doWithFileI(position, offset, [&](std::ifstream &file) {
+            file.read(data, sizeof(T));
+        });
+        for (int i = 0; i < sizeof(T); ++i) {
+            std::cout << data[i] << ' ';
+        }
+        std::cout << std::endl;
+        T* res = static_cast<T*>(malloc(sizeof(T)));
+        std::memcpy(res, data , sizeof(T));
+        return *res;
+    }
+
+    template int FileLinker::readAt(u_int64 position, u_int64 offset);
+    template u_int64 FileLinker::readAt(u_int64 position, u_int64 offset);
 
     FileLinker::~FileLinker() = default;
 } // FileSystem

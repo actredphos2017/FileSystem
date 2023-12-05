@@ -15,8 +15,8 @@ add_executable(
         EmptyNode.cpp
         FileLinker.h
         FileLinker.cpp
-        FileSystemConnector.cpp
-        FileSystemConnector.h
+        FSController.cpp
+        FSController.h
         Terminal.cpp
         Terminal.h
         SHA256.cpp

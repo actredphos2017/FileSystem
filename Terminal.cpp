@@ -26,7 +26,7 @@ namespace FileSystem {
             target(decompose.second);
         } catch (std::out_of_range &) {
             os << "未知命令：" << decompose.first << endl;
-        } catch (Error& e) {
+        } catch (Error &e) {
             os << "发生异常：" << endl;
             os << e.what() << endl;
         }
@@ -62,6 +62,8 @@ namespace FileSystem {
                 "ls\n"
                 "显示当前目录下的文件"
         };
+
+        router["dbpg"] = [this](const auto &args) { dbpg(args); };
     }
 
     void Terminal::help(const std::list<std::string> &args) {
@@ -82,6 +84,10 @@ namespace FileSystem {
         }
     }
 
+    void Terminal::dbpg(const std::list<std::string> &args) {
+        os << controller._diskEntity->_fileLinker.path << endl;
+    }
+
     void Terminal::link(const std::list<std::string> &args) {
         if (args.size() != 1) {
             os << "指令需要且仅需要一个参数才能执行！" << endl;
@@ -89,8 +95,10 @@ namespace FileSystem {
             return;
         }
 
-        DiskEntity diskEntity{args.front()};
-        connector = new FileSystemConnector{diskEntity};
+        std::string pathHolder = args.front();
+
+        DiskEntity diskEntity{pathHolder};
+        controller.setPath(pathHolder);
         os << "链接成功！" << endl;
     }
 
@@ -100,16 +108,13 @@ namespace FileSystem {
             os << "使用 help create 查看更多信息" << endl;
         }
         auto iter = args.begin();
-        std::string path = *(iter++);
+        std::string pathHolder = *(iter++);
         std::string sizeStr = *(iter++);
         std::string rootPassword = *iter;
 
-
         try {
             u_int64 size = parseSizeString(sizeStr);
-
-            DiskEntity diskEntity{size, path, rootPassword};
-            connector = new FileSystemConnector{diskEntity};
+            controller.create(size, pathHolder, rootPassword);
             os << "创建成功！" << endl;
         } catch (size_format_error &) {
             os << "非法的大小输入: " << sizeStr << endl;
@@ -118,7 +123,7 @@ namespace FileSystem {
 
     std::string Terminal::localPrefixBuilder() {
         std::stringstream ss;
-        if (connector == nullptr) {
+        if (!controller.good()) {
             ss << "UNLINK > ";
         } else {
             ss << getUrl() << " > ";
@@ -137,21 +142,22 @@ namespace FileSystem {
 
     void Terminal::ls(const std::list<std::string> &args) {
         assertConnection();
-        auto dirs = connector->getDir(getUrl());
-
-        for (const auto &dir: dirs) {
-            const auto &inode = dir.second;
-            os << inode.getName();
-            if (inode.getType() == INode::Path) {
-                os << '/';
+        auto dirs = controller.getDir(getUrl());
+        if (dirs.empty()) {
+            os << "当前目录为空" << endl;
+        } else {
+            for (const auto &dir: dirs) {
+                const auto &inode = dir.second;
+                os << inode.getName();
+                if (inode.getType() == INode::Path) {
+                    os << '/';
+                }
+                os << endl;
             }
-            os << endl;
         }
     }
 
     void Terminal::assertConnection() {
-        assert(connector != nullptr, "Terminal::ls", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
+        assert(controller.good(), "Terminal::ls", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
     }
-
-
 }
