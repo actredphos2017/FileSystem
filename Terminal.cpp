@@ -26,6 +26,9 @@ namespace FileSystem {
             target(decompose.second);
         } catch (std::out_of_range &) {
             os << "未知命令：" << decompose.first << endl;
+        } catch (Error& e) {
+            os << "发生异常：" << endl;
+            os << e.what() << endl;
         }
     }
 
@@ -45,12 +48,19 @@ namespace FileSystem {
 
         router["create"] = [this](const auto &args) { create(args); };
         docs["create"] = {
-                "创建一个新的文件系统\n",
+                "创建一个新的文件系统",
                 "create [文件系统创建路径] [文件系统大小] [管理员密码]\n"
                 "使用这个命令来创建一个新的文件系统\n"
                 "你可以像这样使用该命令 \"create D:/myFileSystem.sfs 512MB abc123\"\n"
                 "文件系统至少需要 8KB 大小才能工作\n"
-                "创建完成后终端将自动连接该文件系统\n"
+                "创建完成后终端将自动连接该文件系统"
+        };
+
+        router["ls"] = [this](const auto &args) { ls(args); };
+        docs["ls"] = {
+                "显示当前目录下的文件",
+                "ls\n"
+                "显示当前目录下的文件"
         };
     }
 
@@ -79,16 +89,9 @@ namespace FileSystem {
             return;
         }
 
-        try {
-            DiskEntity diskEntity{args.front()};
-            connector = new FileSystemConnector{diskEntity};
-            os << "链接成功！" << endl;
-        } catch (Error &e) {
-            os << "发生异常: " << endl;
-            os << e.what() << endl;
-        }
-
-
+        DiskEntity diskEntity{args.front()};
+        connector = new FileSystemConnector{diskEntity};
+        os << "链接成功！" << endl;
     }
 
     void Terminal::create(const std::list<std::string> &args) {
@@ -110,9 +113,6 @@ namespace FileSystem {
             os << "创建成功！" << endl;
         } catch (size_format_error &) {
             os << "非法的大小输入: " << sizeStr << endl;
-        } catch (Error &e) {
-            os << "发生异常:" << endl;
-            os << e.what() << endl;
         }
     }
 
@@ -134,4 +134,24 @@ namespace FileSystem {
         }
         return ss.str();
     }
+
+    void Terminal::ls(const std::list<std::string> &args) {
+        assertConnection();
+        auto dirs = connector->getDir(getUrl());
+
+        for (const auto &dir: dirs) {
+            const auto &inode = dir.second;
+            os << inode.getName();
+            if (inode.getType() == INode::Path) {
+                os << '/';
+            }
+            os << endl;
+        }
+    }
+
+    void Terminal::assertConnection() {
+        assert(connector != nullptr, "Terminal::ls", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
+    }
+
+
 }

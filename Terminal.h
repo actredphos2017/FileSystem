@@ -42,11 +42,17 @@ namespace FileSystem {
 
         std::string localPrefixBuilder();
 
+        void assertConnection();
+
         void help(const std::list<std::string> &args);
 
         void link(const std::list<std::string> &args);
 
         void create(const std::list<std::string> &args);
+
+        void ls(const std::list<std::string> &args);
+
+
     };
 }
 
