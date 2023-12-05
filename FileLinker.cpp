@@ -10,7 +10,7 @@
 
 namespace FileSystem {
 
-    FileLinker::FileLinker(std::string path): path{std::move(path)} {}
+    FileLinker::FileLinker(std::string path) : path{std::move(path)} {}
 
     bool FileLinker::exist() const {
         return std::filesystem::exists(path);
@@ -32,9 +32,9 @@ namespace FileSystem {
         return std::filesystem::file_size(path);
     }
 
-    void FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const {
+    void
+    FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const {
         std::ifstream file{path, std::ios::in};
-
         if (file.is_open()) {
             file.seekg(static_cast<std::streampos>(position + offset), std::ios::beg);
             f(file);
@@ -44,7 +44,8 @@ namespace FileSystem {
         }
     }
 
-    void FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const {
+    void
+    FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const {
         std::ofstream file(path, std::ios::out | std::ios::in | std::ios::binary);
 
         if (file.is_open()) {
@@ -65,20 +66,17 @@ namespace FileSystem {
 
     template<class T>
     T FileLinker::readAt(u_int64 position, u_int64 offset) {
-        char * data;
+        char *data = static_cast<char *>(malloc(sizeof(T)));
         doWithFileI(position, offset, [&](std::ifstream &file) {
             file.read(data, sizeof(T));
         });
-        for (int i = 0; i < sizeof(T); ++i) {
-            std::cout << data[i] << ' ';
-        }
-        std::cout << std::endl;
-        T* res = static_cast<T*>(malloc(sizeof(T)));
-        std::memcpy(res, data , sizeof(T));
+        T *res = static_cast<T *>(malloc(sizeof(T)));
+        std::memcpy(res, data, sizeof(T));
         return *res;
     }
 
     template int FileLinker::readAt(u_int64 position, u_int64 offset);
+
     template u_int64 FileLinker::readAt(u_int64 position, u_int64 offset);
 
     FileLinker::~FileLinker() = default;
