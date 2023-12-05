@@ -5,52 +5,70 @@
 #include "FileLinker.h"
 
 #include <fstream>
+#include <utility>
 
 namespace FileSystem {
-    FileLinker::FileLinker(const std::string &path) {
-        _fileIO = std::fstream{};
-        _fileIO.open(path, std::ios::in | std::ios::out);
 
-        if (!_fileIO.is_open()) {
-            _fileIO.close();
-            std::ofstream fileCreate{path};
-            assert(fileCreate.is_open(), "FileLinker::FileLinker", "文件创建失败！");
-            fileCreate.close();
-        } else return;
-        _fileIO.open(path, std::ios::in | std::ios::out);
-        assert(_fileIO.is_open(), "FileLinker::FileLinker", "文件打开失败！");
+
+    FileLinker::FileLinker(std::string path) : path(std::move(path)) {}
+
+    bool FileLinker::exist() {
+        std::ifstream file(path);
+        return file.good();
     }
 
-    std::fstream &FileLinker::getFileIO(u_int64 position, u_int64 offset) {
-        assert(_fileIO.is_open(), "FileLinker::getFileIO", "未预料到的文件关闭！");
-        auto pos = (long) (position + offset);
-        _fileIO.flush();
-        _fileIO.seekg(pos, std::ios::beg);
-
-        _fileIO.clear();
-        _fileIO.seekp(pos, std::ios::beg);
-        return _fileIO;
+    bool FileLinker::createIfNotExist() {
+        if (!exist()) {
+            std::ofstream file(path, std::ios::binary);
+            return file.good();
+        }
+        return true;
     }
 
-    void FileLinker::write(u_int64 position, u_int64 offset, ByteArray byteArray) {
-        assert(_fileIO.is_open(), "FileLinker::write", "未预料到的文件关闭！");
-        _fileIO.seekp((long) (position + offset), std::ios::beg);
-        _fileIO.write(reinterpret_cast<const char *>(byteArray.toBytes()), (long) byteArray.size());
+    bool FileLinker::createCompulsory() {
+        std::ofstream file(path, std::ios::binary);
+        return file.good();
     }
 
-    void FileLinker::resize(u_int64 size) {
-        assert(_fileIO.is_open(), "FileLinker::resize", "未预料到的文件关闭！");
-        _fileIO.seekp((long) (size - 1l));
-        _fileIO.put((unsigned char) {0x0});
-    }
-
-    FileLinker::~FileLinker() {
-        _fileIO.close();
+    void FileLinker::resize(u_int64 newSize) {
+        std::ofstream file(path, std::ios::binary | std::ios::ate);
+        file.seekp(static_cast<std::streampos>(newSize - 1));
+        file.put('\0');
     }
 
     u_int64 FileLinker::size() {
-        assert(_fileIO.is_open(), "FileLinker::size", "未预料到的文件关闭！");
-        _fileIO.seekg(0, std::ios::end);
-        return _fileIO.tellg();
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
+        return static_cast<u_int64>(file.tellg());
     }
+
+    void FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) {
+        std::ifstream file(path, std::ios::binary);
+        if (file) {
+            file.seekg(static_cast<std::streampos>(position + offset), std::ios::beg);
+            f(file);
+            file.close();
+        } else {
+            std::cerr << "Error opening file for input." << std::endl;
+        }
+    }
+
+    void FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) {
+        std::ofstream file(path, std::ios::binary);
+        if (file) {
+            file.seekp(static_cast<std::streampos>(position + offset), std::ios::beg);
+            f(file);
+            file.close();
+        } else {
+            std::cerr << "Error opening file for output." << std::endl;
+        }
+    }
+
+    void FileLinker::write(u_int64 position, u_int64 offset, ByteArray byteArray) {
+        doWithFileO(position, offset, [&](std::ofstream &file) {
+            file.write(reinterpret_cast<const char *>(byteArray.toBytes()),
+                       static_cast<std::streamsize>(byteArray.size()));
+        });
+    }
+
+    FileLinker::~FileLinker() = default;
 } // FileSystem
