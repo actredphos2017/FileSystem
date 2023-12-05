@@ -55,9 +55,10 @@ public:
 
     template<class T>
     static T fromBytes(ByteArray array) {
-        T result;
-        std::memcpy(&result, array.toBytes(), sizeof(T));
-        return result;
+        static_assert(std::is_trivially_copyable<T>::value, "Type T must be trivially copyable");
+        T *result = reinterpret_cast<T *>(malloc(sizeof(T)));
+        std::memcpy(result, array.toBytes(), sizeof(T));
+        return *result;
     }
 };
 
