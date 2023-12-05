@@ -10,20 +10,25 @@
 namespace FileSystem {
 
     class FSController {
-    public:
 
+    public:
         bool good() const;
 
         void create(u_int64 size, std::string path, const std::string &root_password);
 
         void setPath(std::string path);
 
+        std::string getPath();
+
         u_int64 getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart);
 
-        u_int64 getFilePos(const std::string &filePath);
+        u_int64 getFilePos(std::list<std::string> _folderPath);
 
-        std::list<std::pair<u_int64, INode>> getDir(const std::string &filePath);
+        u_int64 createDir(std::list<std::string> _folderPath, std::string fileName);
 
+        std::list<std::pair<u_int64, INode>> getDir(std::list<std::string> filePath);
+
+    private:
         DiskEntity *_diskEntity{nullptr};
     };
 

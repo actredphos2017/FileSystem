@@ -52,7 +52,7 @@ namespace FileSystem {
 
         void ls(const std::list<std::string> &args);
 
-        void dbpg(const std::list<std::string> &args);
+        void mkdir(const std::list<std::string> &args);
     };
 }
 

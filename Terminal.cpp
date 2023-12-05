@@ -63,7 +63,12 @@ namespace FileSystem {
                 "显示当前目录下的文件"
         };
 
-        router["dbpg"] = [this](const auto &args) { dbpg(args); };
+        router["mkdir"] = [this](const auto &args) { mkdir(args); };
+        docs["mkdir"] = {
+                "创建新的文件夹",
+                "mkdir [文件夹名称]\n"
+                "在当前目录下创建新的文件夹"
+        };
     }
 
     void Terminal::help(const std::list<std::string> &args) {
@@ -84,10 +89,6 @@ namespace FileSystem {
         }
     }
 
-    void Terminal::dbpg(const std::list<std::string> &args) {
-        os << controller._diskEntity->_fileLinker.path << endl;
-    }
-
     void Terminal::link(const std::list<std::string> &args) {
         if (args.size() != 1) {
             os << "指令需要且仅需要一个参数才能执行！" << endl;
@@ -95,7 +96,7 @@ namespace FileSystem {
             return;
         }
 
-        std::string pathHolder = args.front();
+        const std::string &pathHolder = args.front();
 
         DiskEntity diskEntity{pathHolder};
         controller.setPath(pathHolder);
@@ -122,13 +123,11 @@ namespace FileSystem {
     }
 
     std::string Terminal::localPrefixBuilder() {
-        std::stringstream ss;
         if (!controller.good()) {
-            ss << "UNLINK > ";
+            return "[UNLINK] > ";
         } else {
-            ss << getUrl() << " > ";
+            return std::format("[{}] {} > ", controller.getPath(), getUrl());
         }
-        return ss.str();
     }
 
     std::string Terminal::getUrl() {
@@ -140,16 +139,16 @@ namespace FileSystem {
         return ss.str();
     }
 
-    void Terminal::ls(const std::list<std::string> &args) {
+    void Terminal::ls(const std::list<std::string> &) {
         assertConnection();
-        auto dirs = controller.getDir(getUrl());
+        auto dirs = controller.getDir(sessionUrl);
         if (dirs.empty()) {
             os << "当前目录为空" << endl;
         } else {
             for (const auto &dir: dirs) {
                 const auto &inode = dir.second;
                 os << inode.getName();
-                if (inode.getType() == INode::Path) {
+                if (inode.getType() == INode::Folder) {
                     os << '/';
                 }
                 os << endl;
@@ -159,5 +158,16 @@ namespace FileSystem {
 
     void Terminal::assertConnection() {
         assert(controller.good(), "Terminal::ls", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
+    }
+
+    void Terminal::mkdir(const std::list<std::string> &args) {
+        if (args.size() != 1) {
+            os << "指令需要且仅需要一个参数才能执行！" << endl;
+            os << "使用 help mkdir 查看更多信息" << endl;
+            return;
+        }
+        assertConnection();
+
+        controller.createDir(sessionUrl, args.front());
     }
 }

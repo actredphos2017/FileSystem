@@ -44,6 +44,27 @@ namespace FileSystem {
         int openCounter{};
         u_int64 next{};
 
+        INode() = default;
+
+        INode(
+                const std::string& name,
+                u_int64 size,
+                std::byte permission,
+                std::byte type,
+                int openCounter,
+                u_int64 next
+        )
+                : size(size),
+                  permission(permission),
+                  type(type),
+                  openCounter(openCounter),
+                  next(next) {
+            auto lenOfName = strlen(name.c_str());
+            nameLength = static_cast<std::byte>(lenOfName);
+            this->name = new char[lenOfName + 1];
+            std::memcpy(const_cast<char *>(this->name), name.c_str(), lenOfName + 1);
+        }
+
         ByteArray toBytes() override {
             return ByteArray(nameLength)
                     .append(reinterpret_cast<const std::byte *>(name), (size_t) nameLength)
@@ -54,10 +75,13 @@ namespace FileSystem {
                     .append(IByteable::toBytes(next));
         }
 
+        const static std::byte FILE_TYPE = std::byte{0};
+        const static std::byte FOLDER_TYPE = std::byte{1};
+
         enum Type {
             Unknown = -1,
             UserFile = 0,
-            Path = 1,
+            Folder = 1,
         };
 
         [[nodiscard]] std::string getName() const {

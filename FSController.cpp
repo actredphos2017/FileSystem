@@ -29,7 +29,7 @@ namespace FileSystem {
             targetFilePos = position;
         } else {
             INode fileINode = _diskEntity->fileINodeAt(position);
-            if (fileINode.getType() != INode::Path) {
+            if (fileINode.getType() != INode::Folder) {
                 return UNDEFINED;
             }
             FileNode *pathFile = _diskEntity->fileAt(position);
@@ -50,18 +50,13 @@ namespace FileSystem {
     }
 
 
-    u_int64 FSController::getFilePos(const std::string &_filePath) {
-        auto filePath = checkPath(_filePath);
-        assert(filePath[0] == '/', "FSController::getFilePos");
-
-        std::list<std::string> pathParts = splitString(filePath, '/');
-
-        pathParts.pop_front();
+    u_int64 FSController::getFilePos(std::list<std::string> filePath) {
+        filePath.pop_front();
 
         u_int64 targetPos = _diskEntity->root();
         bool isRoot = true;
 
-        for (const auto &it: pathParts) {
+        for (const auto &it: filePath) {
             if (targetPos == UNDEFINED) break;
             targetPos = getFileAtPath(targetPos, it, isRoot);
             isRoot = false;
@@ -73,29 +68,79 @@ namespace FileSystem {
         return targetPos;
     }
 
-    std::list<std::pair<u_int64, INode>> FSController::getDir(const std::string &_filePath) {
-        auto filePath = checkPath(_filePath);
+    std::list<std::pair<u_int64, INode>> FSController::getDir(std::list<std::string> folderPath) {
+
         u_int64 targetPath;
-        if (filePath == "/") {
+
+        if (folderPath.empty()) {
             targetPath = _diskEntity->root();
         } else {
-            u_int64 pathPos = getFilePos(filePath);
+            u_int64 pathPos = getFilePos(std::move(folderPath));
             if (pathPos == UNDEFINED) return {};
             auto pathFile = _diskEntity->fileAt(pathPos);
-            assert(pathFile->inode.getType() == INode::Path, "FSController::getDir");
+            assert(pathFile->inode.getType() == INode::Folder, "FSController::getDir");
             targetPath = IByteable::fromBytes<u_int64>(pathFile->data);
         }
 
         std::list<std::pair<u_int64, INode>> res{};
 
         while (targetPath != UNDEFINED) {
-            std::cout << "Path: " << targetPath << std::endl;
+            cout << targetPath << endl;
             auto inode = _diskEntity->fileINodeAt(targetPath);
+            cout << "inode.next: " << inode.next << endl;
             res.emplace_back(targetPath, inode);
             targetPath = inode.next;
         }
 
         return res;
+    }
+
+    std::string FSController::getPath() {
+        return _diskEntity->getPath();
+    }
+
+    u_int64 FSController::createDir(std::list<std::string> folderPath, std::string fileName) {
+
+        INode newFolderINode{fileName, 8, std::byte{0xFF}, INode::FOLDER_TYPE, 0, UNDEFINED};
+        auto createPos = _diskEntity->addFile(newFolderINode, IByteable::toBytes(UNDEFINED));
+
+        if (createPos == UNDEFINED) {
+            throw Error{"FSController::createDir", "文件夹创建失败：当前系统已没有足够空间！"};
+        }
+
+        u_int64 head;
+
+        if (folderPath.empty()) {
+            // root
+            head = _diskEntity->root();
+            if (head == UNDEFINED) {
+                // root 为空
+                _diskEntity->setRoot(createPos);
+                return createPos;
+            }
+        } else {
+            auto folderPos = this->getFilePos(folderPath);
+            auto folderFile = _diskEntity->fileAt(folderPos);
+            assert(folderFile != nullptr);
+            assert(folderFile->inode.getType() == INode::Folder, "FSController::createDir", "目标不为文件夹");
+            assert(folderFile->data.size() == sizeof(u_int64));
+            head = IByteable::fromBytes<u_int64>(folderFile->data);
+            if (head == UNDEFINED) {
+                folderFile->data = IByteable::toBytes(createPos);
+                _diskEntity->updateWithoutSizeChange(folderPos, *folderFile);
+                return createPos;
+            }
+        }
+
+        u_int64 next = _diskEntity->fileAt(head)->inode.next;
+
+        while (next != UNDEFINED) {
+            head = next;
+            next = _diskEntity->fileAt(head)->inode.next;
+        }
+
+        _diskEntity->updateNextAt(head, createPos);
+        return createPos;
     }
 
 } // FileSystem

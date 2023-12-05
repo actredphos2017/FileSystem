@@ -39,7 +39,8 @@ namespace FileSystem {
         });
     }
 
-    DiskEntity::DiskEntity(u_int64 size, std::string path, const std::string &root_password) : _fileLinker(std::move(path)) {
+    DiskEntity::DiskEntity(u_int64 size, std::string path, const std::string &root_password) : _fileLinker(
+            std::move(path)) {
         _fileLinker.create();
         _fileLinker.resize(size);
         format(size, root_password);
@@ -349,6 +350,52 @@ namespace FileSystem {
 
         assert(sizeGood, "DiskEntity::checkFormat",
                std::format("大小不相等：文件系统声明 {} 与 实际大小 {}", stateSize, fileSize));
+    }
+
+    std::string DiskEntity::getPath() const {
+        return _fileLinker.path;
+    }
+
+    void DiskEntity::setRoot(u_int64 pos) {
+        _fileLinker.write(0, DiskEntity::ROOT_START, IByteable::toBytes(pos));
+    }
+
+    void DiskEntity::updateWithoutSizeChange(u_int64 originLoc, FileNode &newFile) {
+        bool isFile;
+
+        _fileLinker.doWithFileI(0, originLoc, [&](std::istream &it) {
+            isFile = getType(it) == FileSystem::File;
+        });
+
+        assert(isFile, "DiskEntity::updateWithoutSizeChange", "目标不为文件");
+
+        auto oldFile = fileAt(originLoc);
+
+        assert(oldFile->inode.size == newFile.inode.size, "DiskEntity::updateWithoutSizeChange",
+               "旧文件与新文件的大小不同");
+
+        newFile.setExpansionSize(oldFile->expansionSize);
+
+        assert(oldFile->mainSize() == newFile.mainSize(), "DiskEntity::updateWithoutSizeChange",
+               "旧文件与新文件扩容后的实际大小不同");
+
+        _fileLinker.write(0, originLoc, newFile.toBytes());
+    }
+
+    void DiskEntity::updateNextAt(u_int64 originLoc, u_int64 newNext) {
+        bool isFile;
+
+        _fileLinker.doWithFileI(0, originLoc, [&](std::istream &it) {
+            isFile = getType(it) == FileSystem::File;
+        });
+
+        assert(isFile, "DiskEntity::updateNextAt", "目标不为文件");
+
+        auto it = fileINodeAt(originLoc);
+
+        it.next = newNext;
+
+        _fileLinker.write(originLoc, FileNode::INODE_START, it.toBytes());
     }
 
 

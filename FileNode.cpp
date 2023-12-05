@@ -36,7 +36,7 @@ namespace FileSystem {
             case 0:
                 return UserFile;
             case 1:
-                return Path;
+                return Folder;
             default:
                 return Unknown;
         }
