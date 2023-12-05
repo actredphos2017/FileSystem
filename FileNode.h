@@ -60,6 +60,10 @@ namespace FileSystem {
             Path = 1,
         };
 
+        [[nodiscard]] std::string getName() const {
+            return {name, (size_t) nameLength};
+        }
+
         [[nodiscard]] u_int64 getSize() const;
 
         static INode parse(std::istream &istream);
