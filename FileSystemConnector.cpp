@@ -64,9 +64,10 @@ namespace FileSystem {
     std::list<std::pair<u_int64, INode>> FileSystemConnector::getDir(const std::string &_filePath) {
         auto filePath = checkPath(_filePath);
         u_int64 targetPath;
-        if (filePath == "/")
+        if (filePath == "/") {
+            std::cout << "is root!" << std::endl;
             targetPath = _diskEntity.root();
-        else {
+        } else {
             u_int64 pathPos = getFilePos(filePath);
             if (pathPos == UNDEFINED) return {};
             auto pathFile = _diskEntity.fileAt(pathPos);
@@ -77,6 +78,8 @@ namespace FileSystem {
         std::list<std::pair<u_int64, INode>> res{};
 
         while (targetPath != UNDEFINED) {
+            std::cout << "Path: " << targetPath << std::endl;
+            system("pause");
             auto inode = _diskEntity.fileINodeAt(targetPath);
             res.emplace_back(targetPath, inode);
             targetPath = inode.next;
