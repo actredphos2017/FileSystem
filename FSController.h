@@ -7,35 +7,36 @@
 
 #include "DiskEntity.h"
 
-#define FS_DEBUG
-
 namespace FileSystem {
 
     class FSController {
 
     public:
-        bool good() const;
+        [[nodiscard]] bool good() const;
 
         void create(u_int64 size, std::string path, const std::string &root_password);
 
         void setPath(std::string path);
 
-        std::string getPath();
+        [[nodiscard]] std::string getDiskTitle() const;
 
-        u_int64 getFileAtPath(u_int64 position, const std::string &fileName, bool isPathStart);
+        u_int64 createDir(const std::list<std::string> &_folderPath, std::string fileName);
 
-        u_int64 getFilePos(std::list<std::string> _folderPath);
+        std::list<std::pair<u_int64, INode>> getDir(const std::list<std::string>& filePath);
 
-        u_int64 createDir(std::list<std::string> _folderPath, std::string fileName);
-
-        std::list<std::pair<u_int64, INode>> getDir(std::list<std::string> filePath);
+        INode getINodeByPath(const std::list<std::string>& folderPath);
 
 
 #ifndef FS_DEBUG
     private:
 #endif
 
+        [[nodiscard]] u_int64 getFileAtFolder(u_int64 position, const std::string &fileName, bool isRoot) const;
+
+        [[nodiscard]] u_int64 getFilePos(const std::list<std::string>& _folderPath) const;
+
         DiskEntity *_diskEntity{nullptr};
+
     };
 
 } // FileSystem

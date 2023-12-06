@@ -56,8 +56,16 @@ namespace FileSystem {
 
         void mkdir(const std::list<std::string> &args);
 
+        void cd(const std::list<std::string> &args);
+
         void debug(const std::list<std::string> &args);
+
+        void exit(const std::list<std::string> &args);
+
     };
+
+    class ExitSignal : std::exception {};
+
 }
 
 

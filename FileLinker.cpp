@@ -18,7 +18,8 @@ namespace FileSystem {
 
     bool FileLinker::create() const {
         if (exist()) std::filesystem::remove(path);
-        std::ofstream file(path, std::ios::app | std::ios::out);
+        std::string pathCpy = path;
+        std::ofstream file(pathCpy, std::ios::app | std::ios::out);
         auto good = file.good();
         file.close();
         return good;
@@ -34,7 +35,8 @@ namespace FileSystem {
 
     void
     FileLinker::doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const {
-        std::ifstream file{path, std::ios::in};
+        std::string pathCpy = path;
+        std::ifstream file{pathCpy, std::ios::in};
         if (file.is_open()) {
             file.seekg(static_cast<std::streampos>(position + offset), std::ios::beg);
             f(file);
@@ -46,7 +48,8 @@ namespace FileSystem {
 
     void
     FileLinker::doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const {
-        std::ofstream file(path, std::ios::out | std::ios::in | std::ios::binary);
+        std::string pathCpy = path;
+        std::ofstream file(pathCpy, std::ios::out | std::ios::in | std::ios::binary);
 
         if (file.is_open()) {
             file.seekp(static_cast<std::streampos>(position + offset), std::ios::beg);
@@ -62,10 +65,6 @@ namespace FileSystem {
             file.write(reinterpret_cast<const char *>(byteArray.toBytes()),
                        static_cast<std::streamsize>(byteArray.size()));
         });
-    }
-
-    void FileLinker::checkPath() {
-
     }
 
     template<class T>

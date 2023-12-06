@@ -35,8 +35,7 @@ namespace FileSystem {
      */
 
     struct INode : IByteable {
-        std::byte nameLength{};
-        const char *name{};
+        std::string name{};
         u_int64 size{};
 
         std::byte permission{};
@@ -47,27 +46,29 @@ namespace FileSystem {
         INode() = default;
 
         INode(
-                const std::string &name,
+                std::string name,
                 u_int64 size,
                 std::byte permission,
                 std::byte type,
                 int openCounter,
                 u_int64 next
         )
-                : size(size),
+                : name{std::move(name)},
+                  size(size),
                   permission(permission),
                   type(type),
                   openCounter(openCounter),
-                  next(next) {
-            auto lenOfName = strlen(name.c_str());
-            nameLength = static_cast<std::byte>(lenOfName);
-            this->name = new char[lenOfName + 1];
-            std::memcpy(const_cast<char *>(this->name), name.c_str(), lenOfName + 1);
-        }
+                  next(next) {}
 
         ByteArray toBytes() override {
-            auto bytes = ByteArray(nameLength)
-                    .append(reinterpret_cast<const std::byte *>(name), (size_t) nameLength)
+
+            auto nameSize = name.size();
+
+            assert(nameSize <= 0xff);
+
+
+            auto bytes = ByteArray(static_cast<std::byte>((unsigned char)nameSize))
+                    .append(reinterpret_cast<const std::byte *>(name.c_str()), nameSize)
                     .append(IByteable::toBytes(size))
                     .append(permission)
                     .append(type)
@@ -85,10 +86,6 @@ namespace FileSystem {
             UserFile = 0,
             Folder = 1,
         };
-
-        [[nodiscard]] std::string getName() const {
-            return {name, (size_t) nameLength};
-        }
 
         [[nodiscard]] u_int64 getSize() const;
 

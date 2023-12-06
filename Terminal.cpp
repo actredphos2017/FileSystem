@@ -74,6 +74,20 @@ namespace FileSystem {
                 "在当前目录下创建新的文件夹"
         };
 
+        router["exit"] = [this](const auto &args) { exit(args);};
+        docs["exit"] = {
+                "离开",
+                "exit\n"
+                "点开连接并退出程序"
+        };
+
+        router["cd"] = [this](const auto &args) { cd(args);};
+        docs["cd"] = {
+                "进入目录",
+                "cd [目录]\n"
+                "点开连接并退出程序"
+        };
+
         router["debug"] = [this](const auto &args) { debug(args); };
     }
 
@@ -133,7 +147,7 @@ namespace FileSystem {
         if (!controller.good()) {
             return "[UNLINK] > ";
         } else {
-            return std::format("[{}] {} > ", controller.getPath(), getUrl());
+            return std::format("[{}] {} > ", controller.getDiskTitle(), getUrl());
         }
     }
 
@@ -152,9 +166,11 @@ namespace FileSystem {
         if (dirs.empty()) {
             os << "当前目录为空" << endl;
         } else {
+            os << std::format("当前目录下共有 {} 个项目",dirs.size()) << endl;
             for (const auto &dir: dirs) {
                 const auto &inode = dir.second;
-                os << inode.getName();
+
+                os << inode.name;
                 if (inode.getType() == INode::Folder) {
                     os << '/';
                 }
@@ -184,8 +200,6 @@ namespace FileSystem {
         switch (index) {
             case 1: {
 
-                os << "FirstEmpty: " << controller._diskEntity->getFirstEmpty() << endl;
-                os << "ROOT PATH : " << controller._diskEntity->root() << endl;
 
                 break;
             }
@@ -206,6 +220,29 @@ namespace FileSystem {
 
             }
         }
+    }
+
+    void Terminal::exit(const std::list<std::string> &args) {
+        throw ExitSignal();
+    }
+
+    void Terminal::cd(const std::list<std::string> &args) {
+        if (args.size() != 1) {
+            os << "指令需要且仅需要一个参数才能执行！" << endl;
+            os << "使用 help cd 查看更多信息" << endl;
+            return;
+        }
+        assertConnection();
+
+        auto targetPath{sessionUrl};
+        targetPath.push_back(args.front());
+
+        auto inode = controller.getINodeByPath(targetPath);
+
+        assert(inode.getType() == INode::Folder, "Terminal::cd", "目标项目不是文件夹");
+
+        sessionUrl = targetPath;
+
     }
 
 

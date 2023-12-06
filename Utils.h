@@ -70,6 +70,9 @@ class size_format_error : std::exception {
 
 u_int64 parseSizeString(const std::string &sizeString);
 
+// 输入： /a/b/./c/d/../e -> /a/b/c/e
+
+
 namespace FileSystem {
     enum NodeType {
         File, Empty, Undefined
@@ -95,6 +98,8 @@ namespace FileSystem {
     private:
         std::string msg;
     };
+
+    std::list<std::string> fixPath(const std::list<std::string>& filePath);
 
 }
 

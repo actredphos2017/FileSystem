@@ -112,6 +112,8 @@ u_int64 parseSizeString(const std::string &sizeString) {
     return size;
 }
 
+
+
 namespace FileSystem {
     NodeType getType(std::istream &startPos) {
         char *identification;
@@ -146,5 +148,18 @@ namespace FileSystem {
         }
 
         return trimmedPath;
+    }
+
+    std::list<std::string> fixPath(const std::list<std::string> &filePath) {
+        std::list<std::string> res{};
+        for (const std::string &part: filePath) {
+            assert(!part.empty(), "Utils::fixPath", "路径非法");
+            if (part == ".") continue;
+            if (part == "..") {
+                assert(!res.empty(), "Utils::fixPath", "路径非法");
+                res.pop_back();
+            } else res.push_back(part);
+        }
+        return res;
     }
 }

@@ -3,14 +3,16 @@
 #include "Terminal.h"
 
 
-
 int main() {
     FileSystem::Terminal cs{std::cout};
 
-    cs.putCommand("link D:/a.sfs");
-    system("pause");
-    cs.putCommand("mkdir b");
-    system("pause");
+    while (true) {
+        try {
+            cs.enterCommand(std::cin);
+        } catch (FileSystem::ExitSignal &) {
+            break;
+        }
+    }
 
     return 0;
 }

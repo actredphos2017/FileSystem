@@ -11,12 +11,18 @@ namespace FileSystem {
 
     INode *INode::parse(std::istream &istream) {
 
-        auto* res = new INode();
+        auto *res = new INode();
 
-        res->nameLength = IByteable::fromBytes<std::byte>(ByteArray().read(istream, 1, false));
+        auto nameSize = IByteable::fromBytes<std::byte>(ByteArray().read(istream, 1, false));
 
-        res->name = reinterpret_cast<const char *>(ByteArray().read(istream, static_cast<unsigned char>(res->nameLength),
-                                                                   false).toBytes());
+        res->name = std::string{
+                reinterpret_cast<const char *>(
+                        ByteArray()
+                                .read(istream, static_cast<unsigned char>(nameSize), false)
+                                .toBytes()
+                ),
+                static_cast<unsigned char>(nameSize)
+        };
 
         res->size = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 8, false));
 
@@ -43,7 +49,7 @@ namespace FileSystem {
     }
 
     u_int64 INode::getSize() const {
-        return std::to_integer<u_int64>(nameLength) + 23;
+        return name.size() + 23;
     }
 
     FileNode::FileNode(u_int64 lastNode, u_int64 nextNode, INode iNode, u_int64 expansionSize, ByteArray data) :

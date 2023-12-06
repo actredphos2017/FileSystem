@@ -380,13 +380,6 @@ namespace FileSystem {
     }
 
     void DiskEntity::updateWithoutSizeChange(u_int64 originLoc, FileNode &newFile) {
-        bool isFile;
-
-        _fileLinker.doWithFileI(0, originLoc, [&](std::istream &it) {
-            isFile = getType(it) == FileSystem::File;
-        });
-
-        assert(isFile, "DiskEntity::updateWithoutSizeChange", "目标不为文件");
 
         auto oldFile = fileAt(originLoc);
 
@@ -402,15 +395,6 @@ namespace FileSystem {
     }
 
     void DiskEntity::updateNextAt(u_int64 originLoc, u_int64 newNext) {
-
-        bool isFile;
-
-        _fileLinker.doWithFileI(0, originLoc, [&](std::istream &it) {
-            isFile = getType(it) == FileSystem::File;
-        });
-
-        assert(isFile, "DiskEntity::updateNextAt", "目标不为文件");
-
         auto it = fileINodeAt(originLoc);
 
         it.next = newNext;

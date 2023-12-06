@@ -16,13 +16,14 @@ namespace FileSystem {
 
     EmptyNode *EmptyNode::parse(std::istream &input) {
         ByteArray().read(input, 4, false);
-        return new EmptyNode(
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false))
-        );
+
+        auto _1 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _2 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _3 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _4 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _5 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+
+        return new EmptyNode(_1, _2, _3, _4, _5);
     }
 
     ByteArray EmptyNode::toBytes() {
