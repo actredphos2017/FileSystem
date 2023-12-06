@@ -9,24 +9,24 @@
 namespace FileSystem {
 
 
-    INode INode::parse(std::istream &istream) {
+    INode *INode::parse(std::istream &istream) {
 
-        auto res = INode();
+        auto* res = new INode();
 
-        res.nameLength = IByteable::fromBytes<std::byte>(ByteArray().read(istream, 1, false));
+        res->nameLength = IByteable::fromBytes<std::byte>(ByteArray().read(istream, 1, false));
 
-        res.name = reinterpret_cast<const char *>(ByteArray().read(istream, std::to_integer<u_int64>(res.nameLength),
+        res->name = reinterpret_cast<const char *>(ByteArray().read(istream, static_cast<unsigned char>(res->nameLength),
                                                                    false).toBytes());
 
-        res.size = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 4, false));
+        res->size = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 8, false));
 
-        res.permission = *(ByteArray().read(istream, 1, false).toBytes());
+        res->permission = *(ByteArray().read(istream, 1, false).toBytes());
 
-        res.type = *(ByteArray().read(istream, 1, false).toBytes());
+        res->type = *(ByteArray().read(istream, 1, false).toBytes());
 
-        res.openCounter = IByteable::fromBytes<int>(ByteArray().read(istream, 4, false));
+        res->openCounter = IByteable::fromBytes<int>(ByteArray().read(istream, 4, false));
 
-        res.next = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 8, false));
+        res->next = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 8, false));
 
         return res;
     }
@@ -73,6 +73,7 @@ namespace FileSystem {
     }
 
     FileNode *FileNode::parse(std::istream &input) {
+        auto from = input.tellg();
         ByteArray().read(input, 4, false);
         auto lastNode = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
         auto nextNode = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
@@ -80,9 +81,9 @@ namespace FileSystem {
         return new FileNode(
                 lastNode,
                 nextNode,
-                inode,
+                *inode,
                 IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                ByteArray().read(input, inode.size, false)
+                ByteArray().read(input, inode->size, false)
         );
     }
 

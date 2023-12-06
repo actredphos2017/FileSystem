@@ -41,12 +41,12 @@ u_int64 ByteArray::size() const {
 }
 
 ByteArray &ByteArray::read(std::istream &input, u_int64 size, bool reset) {
-    std::streampos originPos;
-    if (reset) originPos = input.tellg();
-    char buf{};
-    for (u_int64 i = 0; i < size; ++i) {
+    u_int64 originPos = input.tellg();
+    u_int64 endPos = originPos + size;
+    auto buf = char{'\0'};
+    while (input.tellg() != endPos) {
         input.get(buf);
-        this->append(reinterpret_cast<const std::byte *>(&buf), 1);
+        this->append(static_cast<std::byte>(buf));
     }
     if (reset) input.seekg(originPos);
     return *this;

@@ -32,6 +32,8 @@ namespace FileSystem {
         template<class T>
         T readAt(u_int64 position, u_int64 offset);
 
+        void checkPath();
+
         ~FileLinker();
 
         // private:

@@ -7,6 +7,8 @@
 
 #include "DiskEntity.h"
 
+#define FS_DEBUG
+
 namespace FileSystem {
 
     class FSController {
@@ -28,7 +30,11 @@ namespace FileSystem {
 
         std::list<std::pair<u_int64, INode>> getDir(std::list<std::string> filePath);
 
+
+#ifndef FS_DEBUG
     private:
+#endif
+
         DiskEntity *_diskEntity{nullptr};
     };
 

@@ -12,11 +12,7 @@ namespace FileSystem {
         initRouterAndDocs();
     }
 
-    void Terminal::enterCommand(std::istream &is) {
-        os << localPrefixBuilder();
-        std::string cmd;
-        std::getline(is, cmd);
-
+    void Terminal::putCommand(const std::string &cmd) {
         auto decompose = commandTrim(cmd);
 
         if (decompose.first.empty()) return;
@@ -30,6 +26,14 @@ namespace FileSystem {
             os << "发生异常：" << endl;
             os << e.what() << endl;
         }
+    }
+
+    void Terminal::enterCommand(std::istream &is) {
+        os << localPrefixBuilder();
+        std::string cmd;
+        std::getline(is, cmd);
+
+        putCommand(cmd);
     }
 
     void Terminal::initRouterAndDocs() {
@@ -69,6 +73,8 @@ namespace FileSystem {
                 "mkdir [文件夹名称]\n"
                 "在当前目录下创建新的文件夹"
         };
+
+        router["debug"] = [this](const auto &args) { debug(args); };
     }
 
     void Terminal::help(const std::list<std::string> &args) {
@@ -107,6 +113,7 @@ namespace FileSystem {
         if (args.size() != 3) {
             os << "指令需要三个参数才能执行\n" << endl;
             os << "使用 help create 查看更多信息" << endl;
+            return;
         }
         auto iter = args.begin();
         std::string pathHolder = *(iter++);
@@ -170,4 +177,36 @@ namespace FileSystem {
 
         controller.createDir(sessionUrl, args.front());
     }
+
+    void Terminal::debug(const std::list<std::string> &args) {
+        auto index = atoi(args.front().c_str());
+
+        switch (index) {
+            case 1: {
+
+                os << "FirstEmpty: " << controller._diskEntity->getFirstEmpty() << endl;
+                os << "ROOT PATH : " << controller._diskEntity->root() << endl;
+
+                break;
+            }
+            case 2: {
+
+                auto a = IByteable::toBytes(u_int64{10});
+                for (auto it: a._bytes) {
+                    os << (int) static_cast<unsigned char>(it) << ' ';
+                }
+                os << endl;
+
+                auto b = IByteable::fromBytes<u_int64>(a);
+                os << b << endl;
+
+                break;
+            }
+            default: {
+
+            }
+        }
+    }
+
+
 }

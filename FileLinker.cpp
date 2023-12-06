@@ -10,7 +10,7 @@
 
 namespace FileSystem {
 
-    FileLinker::FileLinker(std::string path) : path{std::move(path)} {}
+    FileLinker::FileLinker(std::string _path) : path(std::move(_path)) {}
 
     bool FileLinker::exist() const {
         return std::filesystem::exists(path);
@@ -62,6 +62,10 @@ namespace FileSystem {
             file.write(reinterpret_cast<const char *>(byteArray.toBytes()),
                        static_cast<std::streamsize>(byteArray.size()));
         });
+    }
+
+    void FileLinker::checkPath() {
+
     }
 
     template<class T>

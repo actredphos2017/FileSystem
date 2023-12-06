@@ -24,6 +24,8 @@ namespace FileSystem {
 
         explicit Terminal(std::ostream &os);
 
+        void putCommand(const std::string &cmd);
+
         void enterCommand(std::istream &is);
 
     private:
@@ -53,6 +55,8 @@ namespace FileSystem {
         void ls(const std::list<std::string> &args);
 
         void mkdir(const std::list<std::string> &args);
+
+        void debug(const std::list<std::string> &args);
     };
 }
 

@@ -47,7 +47,7 @@ namespace FileSystem {
         INode() = default;
 
         INode(
-                const std::string& name,
+                const std::string &name,
                 u_int64 size,
                 std::byte permission,
                 std::byte type,
@@ -66,13 +66,15 @@ namespace FileSystem {
         }
 
         ByteArray toBytes() override {
-            return ByteArray(nameLength)
+            auto bytes = ByteArray(nameLength)
                     .append(reinterpret_cast<const std::byte *>(name), (size_t) nameLength)
                     .append(IByteable::toBytes(size))
                     .append(permission)
                     .append(type)
                     .append(IByteable::toBytes(openCounter))
                     .append(IByteable::toBytes(next));
+
+            return bytes;
         }
 
         const static std::byte FILE_TYPE = std::byte{0};
@@ -90,7 +92,7 @@ namespace FileSystem {
 
         [[nodiscard]] u_int64 getSize() const;
 
-        static INode parse(std::istream &istream);
+        static INode *parse(std::istream &istream);
 
         [[nodiscard]] Type getType() const;
 

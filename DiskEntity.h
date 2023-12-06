@@ -26,7 +26,7 @@ namespace FileSystem {
     /**
      * 系统最大支持空间： 2^64 Byte = 2^54 KB = 2^44 MB = 2^34 GB
      * 存储格式： | 文件系统标识 8 字节 | 磁盘大小 8 字节 |  Root 根目录头文件地址 8 字节 | 空闲链表头地址 8 字节 | 超级用户密码 32 字节 | 文件数据 |
-     * 文件索引开始位置 40 字节
+     * 文件索引开始位置 64 字节
      */
 
 
@@ -66,6 +66,10 @@ namespace FileSystem {
         void updateWithoutSizeChange(u_int64 originLoc,  FileNode &newFile);
 
         void updateNextAt(u_int64 originLoc, u_int64 newNext);
+
+        void updateFirstEmpty(u_int64 firstEmpty);
+
+        u_int64 getFirstEmpty();
 
 //
 //        // 更新某个位置的文件，返回新的文件位置（若改变），空间已满，更新失败返回 nullptr

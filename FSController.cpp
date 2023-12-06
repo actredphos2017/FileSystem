@@ -85,9 +85,7 @@ namespace FileSystem {
         std::list<std::pair<u_int64, INode>> res{};
 
         while (targetPath != UNDEFINED) {
-            cout << targetPath << endl;
             auto inode = _diskEntity->fileINodeAt(targetPath);
-            cout << "inode.next: " << inode.next << endl;
             res.emplace_back(targetPath, inode);
             targetPath = inode.next;
         }
@@ -101,6 +99,7 @@ namespace FileSystem {
 
     u_int64 FSController::createDir(std::list<std::string> folderPath, std::string fileName) {
 
+        // 创建并添加新的文件夹
         INode newFolderINode{fileName, 8, std::byte{0xFF}, INode::FOLDER_TYPE, 0, UNDEFINED};
         auto createPos = _diskEntity->addFile(newFolderINode, IByteable::toBytes(UNDEFINED));
 
@@ -108,6 +107,7 @@ namespace FileSystem {
             throw Error{"FSController::createDir", "文件夹创建失败：当前系统已没有足够空间！"};
         }
 
+        // 将新的文件夹链接到当前目录下
         u_int64 head;
 
         if (folderPath.empty()) {
@@ -119,6 +119,7 @@ namespace FileSystem {
                 return createPos;
             }
         } else {
+            // 获取目录
             auto folderPos = this->getFilePos(folderPath);
             auto folderFile = _diskEntity->fileAt(folderPos);
             assert(folderFile != nullptr);
@@ -126,6 +127,7 @@ namespace FileSystem {
             assert(folderFile->data.size() == sizeof(u_int64));
             head = IByteable::fromBytes<u_int64>(folderFile->data);
             if (head == UNDEFINED) {
+                // 目录为空
                 folderFile->data = IByteable::toBytes(createPos);
                 _diskEntity->updateWithoutSizeChange(folderPos, *folderFile);
                 return createPos;

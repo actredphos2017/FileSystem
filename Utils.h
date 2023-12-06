@@ -11,6 +11,7 @@
 #include <list>
 #include <sstream>
 #include <format>
+#include <algorithm>
 
 typedef unsigned long long u_int64;
 

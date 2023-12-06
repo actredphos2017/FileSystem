@@ -46,7 +46,7 @@ namespace FileSystem {
         format(size, root_password);
     }
 
-    DiskEntity::DiskEntity(std::string path) : _fileLinker(std::move(path)) {
+    DiskEntity::DiskEntity(std::string path) : _fileLinker(path) {
         checkFormat();
     }
 
@@ -57,7 +57,7 @@ namespace FileSystem {
 
         u_int64 lastEmptyNodeNextEmptyPosWritePos = EMPTY_START;
 
-        auto thisEmptyNodePos = _fileLinker.readAt<u_int64>(lastEmptyNodeNextEmptyPosWritePos, 0);
+        auto thisEmptyNodePos = getFirstEmpty();
 
         auto emptyNode = emptyAt(thisEmptyNodePos);
 
@@ -87,7 +87,14 @@ namespace FileSystem {
             targetFile.nextNode = emptyNode->nextNode;
             assert(targetFile.mainSize() == emptyNode->emptySize, "DiskEntity::addFile",
                    "扩容后文件大小不等于空容量大小");
-            _fileLinker.write(lastEmptyNodeNextEmptyPosWritePos, 0, IByteable::toBytes(emptyNode->nextEmpty));
+
+            auto nextEmptyPos = emptyNode->nextEmpty;
+
+            if (thisEmptyNodePos == getFirstEmpty()) {
+                updateFirstEmpty(nextEmptyPos);
+            }
+
+            _fileLinker.write(lastEmptyNodeNextEmptyPosWritePos, 0, IByteable::toBytes(nextEmptyPos));
             _fileLinker.write(thisEmptyNodePos, 0, targetFile.toBytes());
         } else {
             EmptyNode node = EmptyNode{thisEmptyNodePos, emptyNode->nextNode, emptySize, emptyNode->lastEmpty,
@@ -103,6 +110,11 @@ namespace FileSystem {
 
             targetFile.lastNode = emptyNode->lastNode;
             targetFile.nextNode = newEmptyNodePos;
+
+            if (thisEmptyNodePos == getFirstEmpty()) {
+                updateFirstEmpty(newEmptyNodePos);
+            }
+
             _fileLinker.write(lastEmptyNodeNextEmptyPosWritePos, 0, IByteable::toBytes(newEmptyNodePos));
             _fileLinker.write(newEmptyNodePos, 0, node.toBytes());
             _fileLinker.write(thisEmptyNodePos, 0, targetFile.toBytes());
@@ -186,6 +198,8 @@ namespace FileSystem {
 
             // 重新设置这个空节点的大小
             empty->emptySize = empty->emptySize + fileSize + nextEmpty->emptySize;
+
+            // 无需检查 FIRST_EMPTY
             _fileLinker.write(emptyPos, 0, empty->toBytes());
 
         } else if (lastNodeTypeIsEmpty) { // 10
@@ -206,12 +220,14 @@ namespace FileSystem {
             // 重新设置这个空节点的大小
             empty->emptySize += fileSize;
 
+            // 无需检查 FIRST_EMPTY
             _fileLinker.write(emptyPos, 0, empty->toBytes());
 
         } else if (nextNodeTypeIsEmpty) { // 01
 
             emptyPos = position;
-            empty = emptyAt(file->nextNode);
+            u_int64 oldEmptyPos = file->nextNode;
+            empty = emptyAt(oldEmptyPos);
             u_int64 nextEmptyPos = empty->nextEmpty;
             u_int64 lastEmptyPos = empty->lastEmpty;
             u_int64 nextNodePos = empty->nextNode;
@@ -231,12 +247,15 @@ namespace FileSystem {
                 _fileLinker.write(lastEmptyPos, EmptyNode::NEXT_EMPTY_START, IByteable::toBytes(emptyPos));
             }
 
-
             // 设置这个空节点的 上一个节点位置
             empty->lastEmpty = file->lastNode;
 
             // 重新设置这个空节点的大小
             empty->emptySize += fileSize;
+
+            if (oldEmptyPos == getFirstEmpty()) {
+                updateFirstEmpty(emptyPos);
+            }
 
             _fileLinker.write(emptyPos, 0, empty->toBytes());
 
@@ -244,12 +263,15 @@ namespace FileSystem {
 
             emptyPos = position;
 
+            bool flag = false;
+
             // 找到上一个、下一个空节点位置
             u_int64 lastEmptyPos = findLastEmpty(position);
             u_int64 nextEmptyPos;
             if (lastEmptyPos != UNDEFINED) {
                 nextEmptyPos = emptyAt(lastEmptyPos)->nextEmpty;
             } else {
+                flag = true;
                 nextEmptyPos = findNextEmpty(position);
             }
 
@@ -265,6 +287,12 @@ namespace FileSystem {
 
             // 配置该空节点
             empty = new EmptyNode(file->lastNode, file->nextNode, fileSize, lastEmptyPos, nextEmptyPos);
+
+            if (flag) {
+                assert(nextEmptyPos == getFirstEmpty());
+                updateFirstEmpty(emptyPos);
+            }
+
             _fileLinker.write(emptyPos, 0, empty->toBytes());
         }
     }
@@ -313,19 +341,10 @@ namespace FileSystem {
     }
 
     INode DiskEntity::fileINodeAt(u_int64 position) {
-
-        bool isFile;
-
-        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
-            isFile = File == getType(it);
-        });
-
-        assert(isFile, "DiskEntity::fileINodeAt", "尝试获取的 INode 源不为文件");
-
         INode *iNode;
 
-        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
-            *iNode = INode::parse(it);
+        _fileLinker.doWithFileI(position, FileNode::INODE_START, [&](std::ifstream &it) {
+            iNode = INode::parse(it);
         });
 
         return *iNode;
@@ -383,6 +402,7 @@ namespace FileSystem {
     }
 
     void DiskEntity::updateNextAt(u_int64 originLoc, u_int64 newNext) {
+
         bool isFile;
 
         _fileLinker.doWithFileI(0, originLoc, [&](std::istream &it) {
@@ -396,6 +416,14 @@ namespace FileSystem {
         it.next = newNext;
 
         _fileLinker.write(originLoc, FileNode::INODE_START, it.toBytes());
+    }
+
+    void DiskEntity::updateFirstEmpty(u_int64 firstEmpty) {
+        _fileLinker.write(0, DiskEntity::EMPTY_START, IByteable::toBytes(firstEmpty));
+    }
+
+    u_int64 DiskEntity::getFirstEmpty() {
+        return _fileLinker.readAt<u_int64>(0, DiskEntity::EMPTY_START);
     }
 
 
