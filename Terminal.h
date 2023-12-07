@@ -14,7 +14,7 @@
 
 namespace FileSystem {
 
-    typedef std::unordered_map<std::string, std::function<void(const std::list<std::string> &)>> Router;
+    typedef std::unordered_map<std::string, std::function<bool(const std::list<std::string> &)>> Router;
 
     typedef std::unordered_map<std::string, std::pair<std::string, std::string>> DocMap;
 
@@ -24,27 +24,29 @@ namespace FileSystem {
 
         explicit Terminal(std::ostream &os);
 
-        void putCommand(const std::string &cmd);
+        bool putCommand(const std::string &cmd);
 
-        void enterCommand(std::istream &is);
+        bool enterCommand(std::istream &is);
+
+        void putScript(const std::string &script);
+
+        void runScript(const std::string &path);
 
 
-        void help(const std::list<std::string> &args);
+        bool help(const std::list<std::string> &args);
 
-        void link(const std::list<std::string> &args);
+        bool link(const std::list<std::string> &args);
 
-        void create(const std::list<std::string> &args);
+        bool create(const std::list<std::string> &args);
 
-        void ls(const std::list<std::string> &args);
+        bool ls(const std::list<std::string> &args);
 
-        void mkdir(const std::list<std::string> &args);
+        bool mkdir(const std::list<std::string> &args);
 
-        void cd(const std::list<std::string> &args);
+        bool cd(const std::list<std::string> &args);
 
-        void debug(const std::list<std::string> &args);
 
-        void exit(const std::list<std::string> &args);
-
+        static bool exit(const std::list<std::string> &args);
 
     private:
 
@@ -59,7 +61,7 @@ namespace FileSystem {
 
         std::string localPrefixBuilder();
 
-        std::list<std::string> parseUrl(std::string url);
+        std::list<std::string> parseUrl(const std::string& url);
 
         void initRouterAndDocs();
 

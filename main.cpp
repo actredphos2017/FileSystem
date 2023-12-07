@@ -2,6 +2,7 @@
 
 #include "Terminal.h"
 
+#if 0
 
 int main() {
 
@@ -17,4 +18,16 @@ int main() {
 
     return 0;
 }
-// create D:/test.sfs 12MB abc123
+
+#else
+
+int main() {
+
+    FileSystem::Terminal cs{std::cout};
+
+    cs.runScript("D:/script.sfss");
+
+    return 0;
+}
+
+#endif
