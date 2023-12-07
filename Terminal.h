@@ -45,6 +45,8 @@ namespace FileSystem {
 
         bool cd(const std::list<std::string> &args);
 
+        bool script(const std::list<std::string> &args);
+
 
         static bool exit(const std::list<std::string> &args);
 

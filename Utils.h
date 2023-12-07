@@ -114,9 +114,7 @@ namespace FileSystem {
 }
 
 inline void assert(bool require, const std::string &func = "assert", const std::string &reason = "断言失败") {
-    if (!require) {
-        throw FileSystem::Error{func, reason};
-    }
+    if (!require) throw FileSystem::Error{func, reason};
 }
 
 

@@ -125,11 +125,23 @@ namespace FileSystem {
 
     std::list<std::string> splitString(const std::string &input, char delimiter) {
         std::list<std::string> result;
-        std::istringstream stream{input};
         std::string token;
 
-        while (std::getline(stream, token, delimiter)) {
+        for (char ch: input) {
+            if (ch != delimiter) {
+                token += ch;
+            } else {
+                result.push_back(token);
+                token.clear();
+            }
+        }
+
+        if (!token.empty()) {
             result.push_back(token);
+        }
+
+        if (result.empty()) {
+            result.push_back("");
         }
 
         return result;

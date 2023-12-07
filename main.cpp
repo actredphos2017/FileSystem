@@ -2,7 +2,7 @@
 
 #include "Terminal.h"
 
-#if 0
+#if 1
 
 int main() {
 

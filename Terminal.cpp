@@ -6,6 +6,7 @@
 #include "Terminal.h"
 
 #include <ranges>
+#include <filesystem>
 
 #define HELP_CMD_MAX_LENGTH 12
 
@@ -120,6 +121,15 @@ namespace FileSystem {
                 "进入目录",
                 "cd [目录]\n"
                 "点开连接并退出程序"
+        };
+
+        router["script"] = [this](const auto &args) { return script(args); };
+        docs["script"] = {
+                "执行脚本",
+                "script [external / internal] [文件地址]\n"
+                "执行文件系统脚本\n"
+                "参数为 external 时将执行外部文件\n"
+                "参数为 internal 时将执行内部文件(权限必须为可执行)"
         };
     }
 
@@ -289,6 +299,31 @@ namespace FileSystem {
             sessionUrl = fixPath(targetPath);
         }
         os << "已到达路径：" << getUrl() << endl;
+        return true;
+    }
+
+    bool Terminal::script(const std::list<std::string> &args) {
+        if (args.size() != 2) {
+            os << "指令需要两个参数才能执行！" << endl;
+            os << "使用 help script 查看更多信息" << endl;
+            return false;
+        }
+
+        const auto& path = args.back();
+
+        if (args.front() == "external") {
+            assert(std::filesystem::exists(path), "Terminal::script", "目标脚本不存在！");
+
+            os << "开始执行脚本：" << path << endl;
+            runScript(path);
+            os << "脚本执行完毕。" << endl;
+        } else if (args.front() == "internal") {
+            assert(std::filesystem::exists(path), "Terminal::script", "TODO: 功能未实现");
+        } else {
+            os << "首个参数必须为 external 或 internal ，详见 help script" << endl;
+            return false;
+        }
+
         return true;
     }
 
