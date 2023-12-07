@@ -20,122 +20,54 @@ namespace FileSystem {
         this->_diskEntity = new DiskEntity{std::move(path)};
     }
 
-    u_int64 FSController::getFileAtFolder(u_int64 position, const std::string &fileName, bool isRoot) const {
 
-        u_int64 targetFilePos;
+    u_int64 FSController::getFilePos(const std::list<std::string> &_filePath) const {
 
-        // 如果是 Root 根目录， position 应该是一个具体的位置，否则 position 指向一个文件夹，需要得到这个文件的数据部分
-        if (!isRoot) {
-            targetFilePos = position;
-        } else {
-            assert(
-                    _diskEntity->fileINodeAt(position).getType() == INode::Folder,
-                    "FSController::getFileAtFolder",
-                    "目标项目不为文件夹"
-            );
-            FileNode *pathFile = _diskEntity->fileAt(position);
+        auto fixedPath = fixPath(_filePath);
 
-            targetFilePos = IByteable::fromBytes<u_int64>(pathFile->data);
-        }
+        assert(!fixedPath.empty(), "FSController::getFilePos", "路径非法");
 
-        while (targetFilePos != UNDEFINED) {
-            auto inode = _diskEntity->fileINodeAt(targetFilePos);
-            if (inode.name == fileName)
-                break;
-            targetFilePos = inode.next;
-        }
+        auto last = fixedPath.back();
 
-        if (targetFilePos == UNDEFINED) return UNDEFINED;
+        fixedPath.pop_back();
 
-        return targetFilePos;
-    }
+        u_int64 headPos = _diskEntity->root();
 
+        while (!fixedPath.empty()) {
 
-    u_int64 FSController::getFilePos(const std::list<std::string> &filePath) const {
+            auto part = fixedPath.front();
 
-        u_int64 targetPos = _diskEntity->root();
+            fixedPath.pop_front();
 
-        assert(!filePath.empty(), "FSController::getFilePos", "尝试访问根目录文件 1");
-
-        auto temp = filePath;
-
-        auto last = *(temp.rbegin());
-
-        temp.pop_back();
-
-        auto inode = _diskEntity->fileINodeAt(targetPos);
-
-        if (!temp.empty()) {
-
-            bool notFirstLoop = false;
-
-            for (const auto &part: temp) {
-                if (notFirstLoop) {
-                    assert(inode.getType() == INode::Folder, "FSController::getFilePos", "路径中存在文件 2");
-                    targetPos = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(targetPos)->data);
-                }
-
-                notFirstLoop = true;
-
-                assert(targetPos != UNDEFINED, "FSController::getFilePos", "目标文件不存在 3");
-
-                while (targetPos != UNDEFINED) {
-                    if (inode.name == part) {
-                        break;
-                    }
-                    targetPos = inode.next;
-                    assert(targetPos != UNDEFINED, "FSController::getFilePos", "目标文件不存在 4");
-                    inode = _diskEntity->fileINodeAt(targetPos);
-                }
-
-                assert(targetPos != UNDEFINED, "FSController::getFilePos", "目标文件不存在 5");
+            while (headPos != UNDEFINED) {
+                auto inode = _diskEntity->fileINodeAt(headPos);
+                if (inode.name == part) break;
+                headPos = inode.next;
             }
 
-            assert(inode.getType() == INode::Folder, "FSController::getFilePos", "路径中存在文件 6");
-            targetPos = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(targetPos)->data);
-        }
-
-        while (targetPos != UNDEFINED) {
-            if (inode.name == last) {
-                break;
-            }
-            targetPos = inode.next;
-            assert(targetPos != UNDEFINED, "FSController::getFilePos", "目标文件不存在 7");
-            inode = _diskEntity->fileINodeAt(targetPos);
-        }
-
-        assert(targetPos != UNDEFINED, "FSController::getFilePos", "目标文件不存在 8");
-
-        return targetPos;
-    }
-
-    std::list<std::pair<u_int64, INode>> FSController::getDir(const std::list<std::string> &folderPath) {
-
-        u_int64 targetPath;
-
-        if (folderPath.empty()) {
-            targetPath = _diskEntity->root();
-        } else {
-            u_int64 pathPos = getFilePos(fixPath(folderPath));
-
             assert(
-                    _diskEntity->fileINodeAt(pathPos).getType() == INode::Folder,
-                    "FSController::getDir",
-                    "目标项不为文件夹"
+                    headPos != UNDEFINED,
+                    "FSController::getFilePos",
+                    std::format("目标路径部分不存在：{}", part)
             );
 
-            targetPath = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(pathPos)->data);
+            headPos = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(headPos)->data);
+
         }
 
-        std::list<std::pair<u_int64, INode>> res{};
-
-        while (targetPath != UNDEFINED) {
-            auto inode = _diskEntity->fileINodeAt(targetPath);
-            res.emplace_back(targetPath, inode);
-            targetPath = inode.next;
+        while (headPos != UNDEFINED) {
+            auto inode = _diskEntity->fileINodeAt(headPos);
+            if (inode.name == last) break;
+            headPos = inode.next;
         }
 
-        return res;
+        assert(
+                headPos != UNDEFINED,
+                "FSController::getFilePos",
+                std::format("目标项目不存在：{}", last)
+        );
+
+        return headPos;
     }
 
     std::string FSController::getDiskTitle() const {
@@ -150,8 +82,8 @@ namespace FileSystem {
                 !std::any_of(
                         dirFiles.begin(),
                         dirFiles.end(),
-                        [&fileName](const std::pair<u_int64, INode> &it) -> bool {
-                            return it.second.name == fileName;
+                        [&fileName](const INode &it) -> bool {
+                            return it.name == fileName;
                         }
                 ),
                 "FSController::createDir",
@@ -202,15 +134,31 @@ namespace FileSystem {
         return createPos;
     }
 
+    std::list<INode> FSController::getDir(const std::list<std::string> &filePath) {
+
+        u_int64 head;
+
+        if (filePath.empty()) {
+            head = _diskEntity->root();
+        } else {
+            auto targetFolder = getFilePos(filePath);
+            assert(_diskEntity->fileINodeAt(targetFolder).getType() == INode::Folder);
+            head = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(targetFolder)->data);
+        }
+
+        std::list<INode> res{};
+
+        while (head != UNDEFINED) {
+            INode iNode = _diskEntity->fileINodeAt(head);
+            res.push_back(iNode);
+            head = iNode.next;
+        }
+
+        return res;
+    }
+
     INode FSController::getINodeByPath(const std::list<std::string> &folderPath) {
-
-        assert(!folderPath.empty(), "FSController::getINodeByPath", "尝试访问根节点");
-
-        auto pos = getFilePos(fixPath(folderPath));
-
-        assert(pos != UNDEFINED, "FSController::getINodeByPath", "尝试访问的项目不存在");
-
-        return _diskEntity->fileINodeAt(pos);
+        return _diskEntity->fileINodeAt(getFilePos(folderPath));
     }
 
 } // FileSystem

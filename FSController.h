@@ -22,18 +22,24 @@ namespace FileSystem {
 
         u_int64 createDir(const std::list<std::string> &_folderPath, std::string fileName);
 
-        std::list<std::pair<u_int64, INode>> getDir(const std::list<std::string>& filePath);
+        std::list<INode> getDir(const std::list<std::string> &filePath);
 
-        INode getINodeByPath(const std::list<std::string>& folderPath);
+        INode getINodeByPath(const std::list<std::string> &folderPath);
 
 
 #ifndef FS_DEBUG
     private:
 #endif
 
-        [[nodiscard]] u_int64 getFileAtFolder(u_int64 position, const std::string &fileName, bool isRoot) const;
 
-        [[nodiscard]] u_int64 getFilePos(const std::list<std::string>& _folderPath) const;
+        /**
+         *
+         * @param _filePath
+         * @return (值, 值为 UNDEFINED 时的原因)
+         * 1 尝试获取的位置为 ROOT
+         *
+         */
+        u_int64 getFilePos(const std::list<std::string> &_filePath) const;
 
         DiskEntity *_diskEntity{nullptr};
 

@@ -167,8 +167,7 @@ namespace FileSystem {
             os << "当前目录为空" << endl;
         } else {
             os << std::format("当前目录下共有 {} 个项目",dirs.size()) << endl;
-            for (const auto &dir: dirs) {
-                const auto &inode = dir.second;
+            for (const auto &inode: dirs) {
 
                 os << inode.name;
                 if (inode.getType() == INode::Folder) {
