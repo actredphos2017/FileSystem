@@ -137,13 +137,8 @@ namespace FileSystem {
 
     FileNode *DiskEntity::fileAt(u_int64 position) {
         if (position == UNDEFINED) return nullptr;
-
-        FileNode *node;
-
-        _fileLinker.doWithFileI(position, 0, [&](std::ifstream &it) {
-            node = FileNode::parse(it);
-        });
-
+        FileNode *node = nullptr;
+        _fileLinker.doWithFileI(position, 0, [&node](auto &it) { node = FileNode::parse(it); });
         return node;
     }
 

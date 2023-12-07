@@ -31,14 +31,6 @@ namespace FileSystem {
     private:
 #endif
 
-
-        /**
-         *
-         * @param _filePath
-         * @return (值, 值为 UNDEFINED 时的原因)
-         * 1 尝试获取的位置为 ROOT
-         *
-         */
         u_int64 getFilePos(const std::list<std::string> &_filePath) const;
 
         DiskEntity *_diskEntity{nullptr};

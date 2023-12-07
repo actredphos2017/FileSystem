@@ -113,7 +113,6 @@ u_int64 parseSizeString(const std::string &sizeString) {
 }
 
 
-
 namespace FileSystem {
     NodeType getType(std::istream &startPos) {
         char *identification;
@@ -161,5 +160,19 @@ namespace FileSystem {
             } else res.push_back(part);
         }
         return res;
+    }
+
+    std::string filledStr(std::string str, int len) {
+        while (str.size() < len)
+            str += ' ';
+        return str;
+    }
+
+    std::string pathStr(const std::list<std::string> &filePath, bool addSlashAtEnd) {
+        std::stringstream ss;
+        for (const auto &it: filePath)
+            ss << "/" << it;
+        if (addSlashAtEnd) ss << "/";
+        return ss.str();
     }
 }

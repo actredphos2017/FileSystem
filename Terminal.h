@@ -28,23 +28,6 @@ namespace FileSystem {
 
         void enterCommand(std::istream &is);
 
-    private:
-
-        std::ostream &os;
-
-        FSController controller{};
-        std::list<std::string> sessionUrl{};
-
-        std::string getUrl();
-
-        Router router{};
-        DocMap docs{};
-
-        void initRouterAndDocs();
-
-        std::string localPrefixBuilder();
-
-        void assertConnection();
 
         void help(const std::list<std::string> &args);
 
@@ -62,9 +45,29 @@ namespace FileSystem {
 
         void exit(const std::list<std::string> &args);
 
+
+    private:
+
+        std::ostream &os;
+        std::list<std::string> sessionUrl{};
+
+        Router router{};
+        DocMap docs{};
+        FSController controller{};
+
+        std::string getUrl();
+
+        std::string localPrefixBuilder();
+
+        std::list<std::string> parseUrl(std::string url);
+
+        void initRouterAndDocs();
+
+        void assertConnection();
     };
 
-    class ExitSignal : std::exception {};
+    class ExitSignal : std::exception {
+    };
 
 }
 

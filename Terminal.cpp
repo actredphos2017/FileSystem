@@ -5,6 +5,10 @@
 
 #include "Terminal.h"
 
+#include <ranges>
+
+#define HELP_CMD_MAX_LENGTH 12
+
 using std::endl;
 
 namespace FileSystem {
@@ -62,9 +66,9 @@ namespace FileSystem {
 
         router["ls"] = [this](const auto &args) { ls(args); };
         docs["ls"] = {
-                "显示当前目录下的文件",
-                "ls\n"
-                "显示当前目录下的文件"
+                "显示目录下的项目",
+                "ls [可选：目录名]\n"
+                "显示目标目录下的项目"
         };
 
         router["mkdir"] = [this](const auto &args) { mkdir(args); };
@@ -74,14 +78,14 @@ namespace FileSystem {
                 "在当前目录下创建新的文件夹"
         };
 
-        router["exit"] = [this](const auto &args) { exit(args);};
+        router["exit"] = [this](const auto &args) { exit(args); };
         docs["exit"] = {
                 "离开",
                 "exit\n"
                 "点开连接并退出程序"
         };
 
-        router["cd"] = [this](const auto &args) { cd(args);};
+        router["cd"] = [this](const auto &args) { cd(args); };
         docs["cd"] = {
                 "进入目录",
                 "cd [目录]\n"
@@ -93,8 +97,9 @@ namespace FileSystem {
 
     void Terminal::help(const std::list<std::string> &args) {
         if (args.empty()) {
+            os << "可用命令：" << endl;
             for (const auto &doc: docs) {
-                os << "  - " << doc.first << "\t:" << doc.second.first << endl;
+                os << "  - " << filledStr(doc.first, HELP_CMD_MAX_LENGTH) << doc.second.first << endl;
             }
             os << endl;
             os << "输入 \"help [目标命令]\" 来获取目标命令的详细用法。" << endl;
@@ -160,15 +165,30 @@ namespace FileSystem {
         return ss.str();
     }
 
-    void Terminal::ls(const std::list<std::string> &) {
-        assertConnection();
-        auto dirs = controller.getDir(sessionUrl);
-        if (dirs.empty()) {
-            os << "当前目录为空" << endl;
-        } else {
-            os << std::format("当前目录下共有 {} 个项目",dirs.size()) << endl;
-            for (const auto &inode: dirs) {
+    void Terminal::ls(const std::list<std::string> &args) {
 
+        assertConnection();
+
+        std::list<std::string> target;
+
+        if (args.empty()) {
+            target = sessionUrl;
+        } else if (args.size() == 1) {
+            target = parseUrl(args.front());
+        } else {
+            os << "指令不需要或仅需要一个参数才能执行！" << endl;
+            os << "使用 help ls 查看更多信息" << endl;
+            return;
+        }
+
+        auto targetStr = pathStr(target);
+
+        auto dirs = controller.getDir(target);
+        if (dirs.empty()) {
+            os << std::format("目录 {} 下为空", targetStr) << endl;
+        } else {
+            os << std::format("目录 {} 下共有 {} 个项目", targetStr, dirs.size()) << endl;
+            for (const auto &inode: dirs) {
                 os << inode.name;
                 if (inode.getType() == INode::Folder) {
                     os << '/';
@@ -191,34 +211,11 @@ namespace FileSystem {
         assertConnection();
 
         controller.createDir(sessionUrl, args.front());
+        os << "目录创建成功" << endl;
     }
 
     void Terminal::debug(const std::list<std::string> &args) {
         auto index = atoi(args.front().c_str());
-
-        switch (index) {
-            case 1: {
-
-
-                break;
-            }
-            case 2: {
-
-                auto a = IByteable::toBytes(u_int64{10});
-                for (auto it: a._bytes) {
-                    os << (int) static_cast<unsigned char>(it) << ' ';
-                }
-                os << endl;
-
-                auto b = IByteable::fromBytes<u_int64>(a);
-                os << b << endl;
-
-                break;
-            }
-            default: {
-
-            }
-        }
     }
 
     void Terminal::exit(const std::list<std::string> &args) {
@@ -233,15 +230,33 @@ namespace FileSystem {
         }
         assertConnection();
 
-        auto targetPath{sessionUrl};
-        targetPath.push_back(args.front());
+        auto targetPath = parseUrl(args.front());
 
-        auto inode = controller.getINodeByPath(targetPath);
+        if (targetPath.empty()) {
+            sessionUrl.clear();
+        } else {
+            auto inode = controller.getINodeByPath(targetPath);
+            assert(inode.getType() == INode::Folder, "Terminal::cd", "目标项目不是文件夹");
+            sessionUrl = fixPath(targetPath);
+        }
+        os << "已到达路径：" << getUrl() << endl;
+    }
 
-        assert(inode.getType() == INode::Folder, "Terminal::cd", "目标项目不是文件夹");
+    std::list<std::string> Terminal::parseUrl(std::string url) {
 
-        sessionUrl = targetPath;
+        auto parse = splitString(url, '/');
 
+        if (parse.front().empty()) {
+            // 从 root 开始算
+            parse.pop_front();
+            return fixPath(parse);
+        } else {
+            // 从当前开始算
+            for (auto &iter: std::ranges::reverse_view(sessionUrl)) {
+                parse.push_front(iter);
+            }
+            return fixPath(parse);
+        }
     }
 
 

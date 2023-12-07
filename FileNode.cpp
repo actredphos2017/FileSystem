@@ -81,16 +81,12 @@ namespace FileSystem {
     FileNode *FileNode::parse(std::istream &input) {
         auto from = input.tellg();
         ByteArray().read(input, 4, false);
-        auto lastNode = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
-        auto nextNode = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
-        auto inode = INode::parse(input);
-        return new FileNode(
-                lastNode,
-                nextNode,
-                *inode,
-                IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false)),
-                ByteArray().read(input, inode->size, false)
-        );
+        auto _1 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _2 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _3 = *INode::parse(input);
+        auto _4 = IByteable::fromBytes<u_int64>(ByteArray().read(input, 8, false));
+        auto _5 = ByteArray().read(input, _3.size, false);
+        return new FileNode(_1, _2, _3, _4, _5);
     }
 
     void FileNode::setExpansionSize(u_int64 size) {

@@ -80,6 +80,12 @@ namespace FileSystem {
 
     NodeType getType(std::istream &startPos);
 
+    /**
+     * 如果首个为 delimiter ，返回第一个为空字符串，如果最后一个为 delimiter ，不算
+     * @param input
+     * @param delimiter
+     * @return
+     */
     std::list<std::string> splitString(const std::string &input, char delimiter);
 
     std::string checkPath(const std::string &path);
@@ -99,7 +105,11 @@ namespace FileSystem {
         std::string msg;
     };
 
-    std::list<std::string> fixPath(const std::list<std::string>& filePath);
+    std::string filledStr(std::string str, int len);
+
+    std::list<std::string> fixPath(const std::list<std::string> &filePath);
+
+    std::string pathStr(const std::list<std::string> &filePath, bool addSlashAtEnd = true);
 
 }
 

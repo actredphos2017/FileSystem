@@ -111,9 +111,7 @@ namespace FileSystem {
             // 获取目录
             auto folderPos = this->getFilePos(folderPath);
             auto folderFile = _diskEntity->fileAt(folderPos);
-            assert(folderFile != nullptr);
             assert(folderFile->inode.getType() == INode::Folder, "FSController::createDir", "目标不为文件夹");
-            assert(folderFile->data.size() == sizeof(u_int64));
             head = IByteable::fromBytes<u_int64>(folderFile->data);
             if (head == UNDEFINED) {
                 // 目录为空
