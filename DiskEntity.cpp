@@ -5,6 +5,7 @@
 #include "DiskEntity.h"
 
 #include <utility>
+#include <fstream>
 #include "FileNode.h"
 #include "EmptyNode.h"
 #include "SHA256.h"
@@ -151,16 +152,18 @@ namespace FileSystem {
         u_int64 emptyPos;
         EmptyNode *empty;
 
-        bool lastNodeTypeIsEmpty;
-        bool nextNodeTypeIsEmpty;
+        auto lastNodeStream = _fileLinker.getFileInput(file->lastNode, 0);
+        auto lastNodeTypeStr = ByteArray().read(*lastNodeStream, 4, false);
+        lastNodeStream->close();
 
-        _fileLinker.doWithFileI(file->lastNode, 0, [&](std::ifstream &it) {
-            lastNodeTypeIsEmpty = FileSystem::Empty == getType(it);
-        });
 
-        _fileLinker.doWithFileI(file->nextNode, 0, [&](std::ifstream &it) {
-            nextNodeTypeIsEmpty = FileSystem::Empty == getType(it);
-        });
+        auto nextNodeStream = _fileLinker.getFileInput(file->nextNode, 0);
+        auto nextNodeTypeStr = ByteArray().read(*nextNodeStream, 4, false);
+        nextNodeStream->close();
+
+        bool lastNodeTypeIsEmpty = FileSystem::Empty == FileSystem::getType(lastNodeTypeStr);
+
+        bool nextNodeTypeIsEmpty = FileSystem::Empty == FileSystem::getType(nextNodeTypeStr);
 
         if (lastNodeTypeIsEmpty && nextNodeTypeIsEmpty) { // 11
 
@@ -243,7 +246,7 @@ namespace FileSystem {
             }
 
             // 设置这个空节点的 上一个节点位置
-            empty->lastEmpty = file->lastNode;
+            empty->lastNode = file->lastNode;
 
             // 重新设置这个空节点的大小
             empty->emptySize += fileSize;
@@ -302,11 +305,9 @@ namespace FileSystem {
 
         while (res != UNDEFINED) {
 
-            bool flag;
-
-            _fileLinker.doWithFileI(res, 0, [&](std::ifstream &it) {
-                flag = FileSystem::Empty != getType(it);
-            });
+            auto fi = _fileLinker.getFileInput(res, 0);
+            bool flag = FileSystem::Empty != getType(*fi);
+            fi->close();
 
             if (!flag) break;
 
@@ -321,11 +322,9 @@ namespace FileSystem {
 
         while (res != UNDEFINED) {
 
-            bool flag;
-
-            _fileLinker.doWithFileI(res, 0, [&](std::ifstream &it) {
-                flag = FileSystem::Empty != getType(it);
-            });
+            auto fi = _fileLinker.getFileInput(res, 0);
+            bool flag = FileSystem::Empty != getType(*fi);
+            fi->close();
 
             if (!flag) break;
 
@@ -360,10 +359,10 @@ namespace FileSystem {
             sizeGood = stateSize == fileSize;
         });
 
-        assert(prefix == "SakulinF", "DiskEntity::checkFormat", std::format("系统声明错误：{}", prefix));
+        assert(prefix == "SakulinF", "DiskEntity::checkFormat", "系统声明错误："+ prefix);
 
         assert(sizeGood, "DiskEntity::checkFormat",
-               std::format("大小不相等：文件系统声明 {} 与 实际大小 {}", stateSize, fileSize));
+               "大小不相等：文件系统声明 " + std::to_string(stateSize) + " 与 实际大小 " + std::to_string(fileSize));
     }
 
     std::string DiskEntity::getPath() const {
@@ -403,6 +402,50 @@ namespace FileSystem {
 
     u_int64 DiskEntity::getFirstEmpty() {
         return _fileLinker.readAt<u_int64>(0, DiskEntity::EMPTY_START);
+    }
+
+    NodePtr DiskEntity::nodeAt(u_int64 position) {
+
+        auto *input = _fileLinker.getFileInput(position, 0);
+
+        NodePtr ptr{};
+
+        ptr.type = getType(*input);
+
+        input->close();
+
+        ptr.position = position;
+
+        if (ptr.type == FileSystem::File) {
+            ptr.ptr.file = fileAt(position);
+        }
+
+        if (ptr.type == FileSystem::Empty) {
+            ptr.ptr.empty = emptyAt(position);
+        }
+
+        return ptr;
+    }
+
+    std::list<NodePtr> DiskEntity::getAll() {
+        std::list<NodePtr> res{};
+
+        u_int64 target = FILE_INDEX_START;
+
+        while(target != UNDEFINED) {
+            auto node = nodeAt(target);
+            res.push_back(node);
+
+            if (node.type == NodeType::Empty) {
+                target = node.ptr.empty->nextNode;
+            } else if(node.type == NodeType::File) {
+                target = node.ptr.file->nextNode;
+            } else {
+                throw Error{"DiskEntity::getAll", "Unknown Node Type At " + std::to_string(target)};
+            }
+        }
+
+        return res;
     }
 
 

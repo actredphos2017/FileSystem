@@ -66,7 +66,6 @@ namespace FileSystem {
 
             assert(nameSize <= 0xff);
 
-
             auto bytes = ByteArray(static_cast<std::byte>((unsigned char)nameSize))
                     .append(reinterpret_cast<const std::byte *>(name.c_str()), nameSize)
                     .append(IByteable::toBytes(size))
@@ -86,6 +85,8 @@ namespace FileSystem {
             UserFile = 0,
             Folder = 1,
         };
+
+        static std::string typeStr(Type type);
 
         [[nodiscard]] u_int64 getSize() const;
 
@@ -111,6 +112,8 @@ namespace FileSystem {
         static FileNode *parse(std::istream &input);
 
         void setExpansionSize(u_int64 size);
+
+        std::string toString(u_int64 position = 0) const;
 
         u_int64 lastNode;
         u_int64 nextNode;

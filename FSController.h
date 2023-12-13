@@ -22,9 +22,15 @@ namespace FileSystem {
 
         u_int64 createDir(const std::list<std::string> &_folderPath, std::string fileName);
 
+        u_int64 createFile(const std::list<std::string> &_folderPath, std::string fileName, const ByteArray &data);
+
         std::list<INode> getDir(const std::list<std::string> &filePath);
 
         INode getINodeByPath(const std::list<std::string> &folderPath);
+
+        void removeFile(const std::list<std::string> &_filePath);
+
+        void printStructure(std::ostream &os);
 
 
 #ifndef FS_DEBUG

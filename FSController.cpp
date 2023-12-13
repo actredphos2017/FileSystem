@@ -48,7 +48,7 @@ namespace FileSystem {
             assert(
                     headPos != UNDEFINED,
                     "FSController::getFilePos",
-                    std::format("目标路径部分不存在：{}", part)
+                    "目标路径部分不存在：" + part
             );
 
             headPos = IByteable::fromBytes<u_int64>(_diskEntity->fileAt(headPos)->data);
@@ -64,7 +64,7 @@ namespace FileSystem {
         assert(
                 headPos != UNDEFINED,
                 "FSController::getFilePos",
-                std::format("目标项目不存在：{}", last)
+                "目标项目不存在：" + last
         );
 
         return headPos;
@@ -157,6 +157,190 @@ namespace FileSystem {
 
     INode FSController::getINodeByPath(const std::list<std::string> &folderPath) {
         return _diskEntity->fileINodeAt(getFilePos(folderPath));
+    }
+
+    u_int64
+    FSController::createFile(const std::list<std::string> &_folderPath, std::string fileName, const ByteArray &data) {
+
+        auto dirFiles = getDir(fixPath(_folderPath));
+
+        assert(
+                !std::any_of(
+                        dirFiles.begin(),
+                        dirFiles.end(),
+                        [&fileName](const INode &it) -> bool {
+                            return it.name == fileName;
+                        }
+                ),
+                "FSController::createFile",
+                "当前目录下已存在相同文件名的项目！"
+        );
+
+        bool intoRoot = false;
+
+        u_int64 targetFolder;
+
+        if (_folderPath.empty()) {
+            intoRoot = true;
+        } else {
+            targetFolder = getFilePos(_folderPath);
+        }
+
+        auto newFilePos = _diskEntity->addFile(
+                INode{
+                        std::move(fileName),
+                        data.size(),
+                        std::byte{0xFF},
+                        std::byte{0},
+                        0,
+                        UNDEFINED
+                },
+                data
+        );
+
+        assert(newFilePos != UNDEFINED, "FSController::createFile", "磁盘已满！");
+
+        if (intoRoot) {
+
+            auto headPos = _diskEntity->root();
+
+            if (headPos == UNDEFINED) {
+                _diskEntity->setRoot(newFilePos);
+            } else {
+                INode inode = _diskEntity->fileINodeAt(headPos);
+                while (inode.next != UNDEFINED) {
+                    headPos = inode.next;
+                    inode = _diskEntity->fileINodeAt(headPos);
+                }
+                _diskEntity->updateNextAt(headPos, newFilePos);
+            }
+
+        } else {
+            auto folder = _diskEntity->fileAt(targetFolder);
+
+            auto headPos = IByteable::fromBytes<u_int64>(folder->data);
+
+            if (headPos == UNDEFINED) {
+                folder->data = IByteable::toBytes(newFilePos);
+                _diskEntity->updateWithoutSizeChange(targetFolder, *folder);
+            } else {
+                INode inode = _diskEntity->fileINodeAt(headPos);
+                while (inode.next != UNDEFINED) {
+                    headPos = inode.next;
+                    inode = _diskEntity->fileINodeAt(headPos);
+                }
+                _diskEntity->updateNextAt(headPos, newFilePos);
+            }
+        }
+
+        return newFilePos;
+    }
+
+    void FSController::removeFile(const std::list<std::string> &_filePath) {
+
+        auto filePath = _filePath;
+
+        assert(!filePath.empty(), "FSController::removeFile", "无法删除根目录！");
+
+        auto fileName = filePath.back();
+        filePath.pop_back();
+
+        if (filePath.empty()) {
+
+            u_int64 lastFilePos = _diskEntity->root();
+
+            INode headFileINode = _diskEntity->fileINodeAt(lastFilePos);
+
+            if (headFileINode.name == fileName) { // 文件为根目录头文件
+
+                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+
+                _diskEntity->setRoot(headFileINode.next);
+                _diskEntity->removeFileAt(lastFilePos);
+
+                return;
+
+            }
+
+            u_int64 thisFilePos = headFileINode.next;
+
+            INode thisFileINode;
+
+            while (thisFilePos != UNDEFINED) {
+                thisFileINode = _diskEntity->fileINodeAt(thisFilePos);
+                if (thisFileINode.name == fileName) break;
+
+                lastFilePos = thisFilePos;
+                thisFilePos = thisFileINode.next;
+            }
+
+            assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
+            assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+
+            _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
+            _diskEntity->removeFileAt(thisFilePos);
+
+            return;
+
+        } else {
+
+            auto dirPos = getFilePos(filePath);
+
+            auto dirINode = _diskEntity->fileINodeAt(dirPos);
+
+            assert(dirINode.getType() == INode::Folder);
+
+            auto dirFolderFile = _diskEntity->fileAt(dirPos);
+
+            auto lastFilePos = IByteable::fromBytes<u_int64>(dirFolderFile->data);
+
+            INode headFileINode = _diskEntity->fileINodeAt(lastFilePos);
+
+            if (headFileINode.name == fileName) { // 文件为目录头文件
+
+                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+
+                dirFolderFile->data = IByteable::toBytes(headFileINode.next);
+
+                _diskEntity->updateWithoutSizeChange(dirPos, *dirFolderFile);
+                _diskEntity->removeFileAt(lastFilePos);
+
+                return;
+
+            }
+
+            u_int64 thisFilePos = headFileINode.next;
+
+            INode thisFileINode;
+
+            while (thisFilePos != UNDEFINED) {
+                thisFileINode = _diskEntity->fileINodeAt(thisFilePos);
+                if (thisFileINode.name == fileName) break;
+
+                lastFilePos = thisFilePos;
+                thisFilePos = thisFileINode.next;
+            }
+
+            assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
+            assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+
+            _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
+            _diskEntity->removeFileAt(thisFilePos);
+
+            return;
+
+        }
+    }
+
+    void FSController::printStructure(std::ostream& os) {
+        for (const auto &item: _diskEntity->getAll()) {
+            if (item.type == NodeType::File) {
+                os << item.ptr.file->toString(item.position);
+            } else if (item.type == NodeType::Empty) {
+                os << item.ptr.empty->toString(item.position);
+            }
+            os << endl;
+        }
     }
 
 } // FileSystem

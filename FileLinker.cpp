@@ -67,6 +67,15 @@ namespace FileSystem {
         });
     }
 
+    std::ifstream *FileLinker::getFileInput(u_int64 position, u_int64 offset) const {
+        auto *file = new std::ifstream{path, std::ios::in};
+        if (file->is_open()) {
+            file->seekg(static_cast<std::streampos>(position + offset), std::ios::beg);
+            return file;
+        }
+        throw Error{"FileLinker::getFileInput", "文件打开失败"};
+    }
+
     template<class T>
     T FileLinker::readAt(u_int64 position, u_int64 offset) {
         char *data = static_cast<char *>(malloc(sizeof(T)));

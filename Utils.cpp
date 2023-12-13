@@ -5,6 +5,28 @@
 #include "Utils.h"
 
 
+#ifdef _WIN32
+
+void clearConsole() {
+    system("cls");
+}
+
+#elif defined(__unix__)
+
+void clearConsole() {
+    system("clear");
+}
+
+#elif defined(__APPLE__)
+
+#include <cstdlib>
+
+void clearConsole() {
+    system("clear");
+}
+
+#endif
+
 ByteArray::ByteArray(std::byte byte) {
     this->_bytes.push_back(byte);
 }
@@ -115,9 +137,19 @@ u_int64 parseSizeString(const std::string &sizeString) {
 
 namespace FileSystem {
     NodeType getType(std::istream &startPos) {
-        char *identification;
+        char *identification = static_cast<char *>(malloc(4));
         startPos.read(identification, 4);
         std::string str{identification, 4};
+        if (str == "FILE") return FileSystem::File;
+        if (str == "EMPT") return FileSystem::Empty;
+        return FileSystem::Undefined;
+    }
+
+    NodeType getType(ByteArray &bytes) {
+
+        assert(bytes.size() >= 4);
+
+        std::string str{reinterpret_cast<char *>(bytes.toBytes()), 4};
         if (str == "FILE") return FileSystem::File;
         if (str == "EMPT") return FileSystem::Empty;
         return FileSystem::Undefined;

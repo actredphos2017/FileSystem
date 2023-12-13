@@ -5,6 +5,7 @@
 #include "FileNode.h"
 
 #include <utility>
+#include <bitset>
 
 namespace FileSystem {
 
@@ -52,6 +53,22 @@ namespace FileSystem {
         return name.size() + 23;
     }
 
+    std::string INode::typeStr(INode::Type type) {
+        std::string res{};
+        switch (type) {
+            case UserFile :
+                res = "File";
+                break;
+            case Folder:
+                res = "Folder";
+                break;
+            case Unknown:
+                res = "Unknown";
+                break;
+        }
+        return res;
+    }
+
     FileNode::FileNode(u_int64 lastNode, u_int64 nextNode, INode iNode, u_int64 expansionSize, ByteArray data) :
             lastNode(lastNode),
             nextNode(nextNode),
@@ -91,5 +108,31 @@ namespace FileSystem {
 
     void FileNode::setExpansionSize(u_int64 size) {
         expansionSize = size;
+    }
+
+    std::string FileNode::toString(u_int64 pos) const {
+        std::stringstream ss;
+
+        ss << "===== FILE =====" << std::hex << endl;
+        if (pos != 0) {
+            ss << "DiskPos: "<< pos << endl;
+        }
+        ss << "Name: " << inode.name << endl;
+        ss << "Size: " << inode.size << endl;
+
+        auto type = inode.getType();
+
+        ss << "Type: " << INode::typeStr(type) << endl;
+        ss << "Permission: " << (int)static_cast<unsigned char>(inode.permission) << endl;
+        ss << "Next: " << inode.next << endl;
+        ss << "Expansion: " << expansionSize << endl;
+
+        if (type == INode::Folder) {
+            ss << "FolderHead: " << IByteable::fromBytes<u_int64>(data) << endl;
+        }
+
+        ss << std::dec;
+
+        return ss.str();
     }
 } // FileSystem

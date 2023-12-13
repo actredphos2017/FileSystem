@@ -1,33 +1,23 @@
-#include <iostream>
-
 #include "Terminal.h"
 
-#if 1
+using namespace FileSystem;
+
+// script external D:/script.sfss
 
 int main() {
 
-    FileSystem::Terminal cs{std::cout};
+    Terminal cs{std::cout};
+
+    cs.assignEditor("\"C:/Program Files/Sublime Text/sublime_text.exe\"");
+    cs.assignTempFolder("Temp/");
 
     while (true) {
         try {
             cs.enterCommand(std::cin);
-        } catch (FileSystem::ExitSignal &) {
+        } catch (ExitSignal &) {
             break;
         }
     }
 
     return 0;
 }
-
-#else
-
-int main() {
-
-    FileSystem::Terminal cs{std::cout};
-
-    cs.runScript("D:/script.sfss");
-
-    return 0;
-}
-
-#endif

@@ -29,6 +29,15 @@ namespace FileSystem {
      * 文件索引开始位置 64 字节
      */
 
+    typedef struct {
+        NodeType type;
+        u_int64 position;
+        union {
+            FileNode *file;
+            EmptyNode *empty;
+        } ptr;
+    } NodePtr;
+
 
     const u_int64 UNDEFINED = 0;
 
@@ -57,13 +66,15 @@ namespace FileSystem {
         // 获取虚拟磁盘中某个位置的文件（不存在则返回 nullptr）
         FileNode *fileAt(u_int64 position);
 
+        NodePtr nodeAt(u_int64 position);
+
         // 删除虚拟磁盘中某个位置的文件
         void removeFileAt(u_int64 position);
 
         // 添加新的文件（空间已满则添加失败，返回 false）
         u_int64 addFile(const INode &iNode, ByteArray byteArray);
 
-        void updateWithoutSizeChange(u_int64 originLoc,  FileNode &newFile);
+        void updateWithoutSizeChange(u_int64 originLoc, FileNode &newFile);
 
         void updateNextAt(u_int64 originLoc, u_int64 newNext);
 
@@ -77,6 +88,8 @@ namespace FileSystem {
 //
 //        // 全盘优化磁盘碎片
 //        void optimize();
+
+        std::list<NodePtr> getAll();
 
         INode fileINodeAt(u_int64 position);
 
@@ -94,7 +107,6 @@ namespace FileSystem {
         u_int64 findNextEmpty(u_int64 nowNode);
 
         FileLinker _fileLinker;
-
 
     };
 

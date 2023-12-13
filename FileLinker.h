@@ -25,6 +25,8 @@ namespace FileSystem {
 
         void doWithFileI(u_int64 position, u_int64 offset, const std::function<void(std::ifstream &)> &f) const;
 
+        [[nodiscard]] std::ifstream *getFileInput(u_int64 position, u_int64 offset) const;
+
         void doWithFileO(u_int64 position, u_int64 offset, const std::function<void(std::ofstream &)> &f) const;
 
         void write(u_int64 position, u_int64 offset, ByteArray byteArray) const;

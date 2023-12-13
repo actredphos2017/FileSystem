@@ -10,11 +10,12 @@
 #include <vector>
 #include <list>
 #include <sstream>
-#include <format>
 #include <algorithm>
 
 typedef unsigned long long u_int64;
 
+
+void clearConsole();
 
 class ByteArray {
 public:
@@ -37,6 +38,8 @@ public:
     ByteArray subByte(u_int64 from, u_int64 to);
 
     [[nodiscard]] u_int64 size() const;
+
+private:
 
     std::vector<std::byte> _bytes{};
 };
@@ -78,6 +81,8 @@ namespace FileSystem {
         File, Empty, Undefined
     };
 
+    NodeType getType(ByteArray &bytes);
+
     NodeType getType(std::istream &startPos);
 
     /**
@@ -93,8 +98,8 @@ namespace FileSystem {
     class Error : std::runtime_error {
     public:
         Error(const std::string &func, const std::string &reason) :
-                msg(std::format("错误发生在：{}, 原因：{}", func, reason)),
-                std::runtime_error(std::format("错误发生在：{}, 原因：{}", func, reason)) {}
+                msg("错误发生在：" + func + ", 原因：" + reason),
+                std::runtime_error("错误发生在：" + func + ", 原因：" + reason) {}
 
 
         [[nodiscard]] const char *what() const noexcept override {

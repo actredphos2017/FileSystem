@@ -8,6 +8,7 @@
 #include <ranges>
 #include <filesystem>
 
+
 #define HELP_CMD_MAX_LENGTH 12
 
 using std::endl;
@@ -98,7 +99,7 @@ namespace FileSystem {
         router["ls"] = [this](const auto &args) { return ls(args); };
         docs["ls"] = {
                 "显示目录下的项目",
-                "ls [可选：目录名]\n"
+                "ls {可选：目录名}\n"
                 "显示目标目录下的项目"
         };
 
@@ -109,7 +110,7 @@ namespace FileSystem {
                 "在当前目录下创建新的文件夹"
         };
 
-        router["exit"] = [this](const auto &args) { return exit(args); };
+        router["exit"] = [](const auto &args) { return exit(args); };
         docs["exit"] = {
                 "离开",
                 "exit\n"
@@ -120,7 +121,7 @@ namespace FileSystem {
         docs["cd"] = {
                 "进入目录",
                 "cd [目录]\n"
-                "点开连接并退出程序"
+                "进入到目标目录"
         };
 
         router["script"] = [this](const auto &args) { return script(args); };
@@ -131,13 +132,41 @@ namespace FileSystem {
                 "参数为 external 时将执行外部文件\n"
                 "参数为 internal 时将执行内部文件(权限必须为可执行)"
         };
+
+        router["upload"] = [this](const auto &args) { return upload(args); };
+        docs["upload"] = {
+                "从外部上传文件",
+                "upload [外部文件地址] {可选: 文件路径 / 文件名}\n"
+                "从外部上传文件"
+        };
+
+        router["rm"] = [this](const auto &args) { return rm(args); };
+        docs["rm"] = {
+                "删除目标文件",
+                "rm [文件地址]\n"
+                "不可用于删除文件夹"
+        };
+
+        router["struct"] = [this](const auto &args) { return printstruct(args); };
+        docs["struct"] = {
+                "打印磁盘结构",
+                "struct\n"
+                "输出磁盘结构"
+        };
+
+        router["clear"] = [this](const auto &args) { return clear(args); };
+        docs["clear"] = {
+                "清空终端",
+                "clear\n"
+                "清空终端"
+        };
     }
 
     std::string Terminal::localPrefixBuilder() {
         if (!controller.good()) {
             return "[UNLINK] > ";
         } else {
-            return std::format("[{}] {} > ", controller.getDiskTitle(), getUrl());
+            return "[" + controller.getDiskTitle() + "] " + getUrl() + " > ";
         }
     }
 
@@ -205,6 +234,9 @@ namespace FileSystem {
         DiskEntity diskEntity{pathHolder};
         controller.setPath(pathHolder);
         os << "链接成功！" << endl;
+
+        resetUrl();
+
         return true;
     }
 
@@ -227,6 +259,9 @@ namespace FileSystem {
             os << "非法的大小输入: " << sizeStr << endl;
             return false;
         }
+
+        resetUrl();
+
         return true;
     }
 
@@ -250,9 +285,9 @@ namespace FileSystem {
 
         auto dirs = controller.getDir(target);
         if (dirs.empty()) {
-            os << std::format("目录 {} 下为空", targetStr) << endl;
+            os << "目录 " + targetStr + " 下为空" << endl;
         } else {
-            os << std::format("目录 {} 下共有 {} 个项目", targetStr, dirs.size()) << endl;
+            os << "目录 " + targetStr + " 下共有 " + std::to_string(dirs.size()) + " 个项目" << endl;
             for (const auto &inode: dirs) {
                 os << inode.name;
                 if (inode.getType() == INode::Folder) {
@@ -265,12 +300,14 @@ namespace FileSystem {
     }
 
     bool Terminal::mkdir(const std::list<std::string> &args) {
+
+        assertConnection();
+
         if (args.size() != 1) {
             os << "指令需要且仅需要一个参数才能执行！" << endl;
             os << "使用 help mkdir 查看更多信息" << endl;
             return false;
         }
-        assertConnection();
 
         controller.createDir(sessionUrl, args.front());
         os << "目录创建成功" << endl;
@@ -282,12 +319,14 @@ namespace FileSystem {
     }
 
     bool Terminal::cd(const std::list<std::string> &args) {
+
+        assertConnection();
+
         if (args.size() != 1) {
             os << "指令需要且仅需要一个参数才能执行！" << endl;
             os << "使用 help cd 查看更多信息" << endl;
             return false;
         }
-        assertConnection();
 
         auto targetPath = parseUrl(args.front());
 
@@ -309,7 +348,7 @@ namespace FileSystem {
             return false;
         }
 
-        const auto& path = args.back();
+        const auto &path = args.back();
 
         if (args.front() == "external") {
             assert(std::filesystem::exists(path), "Terminal::script", "目标脚本不存在！");
@@ -327,5 +366,111 @@ namespace FileSystem {
         return true;
     }
 
+    void Terminal::assignEditor(const std::string &editorApplication, const std::string &withArgs) {
 
+        auto systemCmd = editorApplication;
+
+        if (!withArgs.empty()) {
+            systemCmd.append(" " + withArgs);
+        }
+
+        editExternalFile = [&systemCmd](const std::string &path) {
+            system((systemCmd + " " + path).c_str());
+        };
+
+        editExternalFileAvailable = true;
+    }
+
+    void Terminal::assignTempFolder(const std::string &_folderPath) {
+
+        std::string folderPath = _folderPath.ends_with('/') ?
+                                 _folderPath.substr(0, _folderPath.size() - 1) :
+                                 _folderPath;
+
+        assert(
+                !std::filesystem::is_regular_file(folderPath),
+                "Terminal::assignTempFolder",
+                "设置的临时文件夹目录为文件"
+        );
+
+        if (!std::filesystem::is_directory(folderPath)) {
+            assert(
+                    std::filesystem::create_directory(folderPath),
+                    "Terminal::assignTempFolder",
+                    "临时文件夹创建失败"
+            );
+        }
+
+        tempFolder = _folderPath;
+    }
+
+    bool Terminal::upload(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        std::string fileName;
+        std::list<std::string> targetPath;
+
+        if (args.size() == 1) {
+            fileName = splitString(args.front(), '/').back();
+            targetPath = sessionUrl;
+        } else if (args.size() == 2) {
+            targetPath = parseUrl(args.back());
+            fileName = targetPath.back();
+            targetPath.pop_back();
+        } else {
+            os << "该指令需要一个或两个参数才能运行" << endl;
+            os << "详情见 help upload" << endl;
+            return false;
+        }
+
+        auto fSize = std::filesystem::file_size(args.front());
+
+        std::ifstream f{args.front(), std::ios::in | std::ios::binary};
+
+        auto data = ByteArray().read(f, fSize, false);
+
+        f.close();
+
+        controller.createFile(targetPath, fileName, data);
+
+        return true;
+    }
+
+    bool Terminal::rm(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        if (args.size() != 1) {
+            os << "该指令需要且仅需要一个参数才能运行" << endl;
+            os << "详情见 help rm" << endl;
+            return false;
+        }
+
+        auto targetFileUrl = parseUrl(args.front());
+
+        controller.removeFile(targetFileUrl);
+
+        return true;
+    }
+
+    bool Terminal::printstruct(const std::list<std::string> &) {
+
+        assertConnection();
+
+        controller.printStructure(os);
+
+        return true;
+    }
+
+    bool Terminal::clear(const std::list<std::string> &) {
+
+        clearConsole();
+
+        return false;
+    }
+
+    void Terminal::resetUrl() {
+        sessionUrl.clear();
+    }
 }

@@ -36,5 +36,24 @@ namespace FileSystem {
                 .append(IByteable::toBytes(nextEmpty));
     }
 
+    std::string EmptyNode::toString(u_int64 pos) const {
+        std::stringstream ss;
+
+        ss << "===== EMPTY =====" << std::hex << endl;
+
+        if (pos != 0) {
+            ss << "DiskPos: "<< pos << endl;
+        }
+        ss << "LastNode: " << lastNode << endl;
+        ss << "NextNode: " << nextNode << endl;
+        ss << "EmptySize: " << emptySize << endl;
+        ss << "LastEmpty: " << lastEmpty << endl;
+        ss << "NextEmpty: " << nextEmpty << endl;
+
+        ss << std::dec;
+
+        return ss.str();
+    }
+
 
 } // FileSystem

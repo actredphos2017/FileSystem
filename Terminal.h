@@ -32,6 +32,10 @@ namespace FileSystem {
 
         void runScript(const std::string &path);
 
+        void assignEditor(const std::string &editorApplication, const std::string &withArgs = "");
+
+        void assignTempFolder(const std::string &_folderPath);
+
 
         bool help(const std::list<std::string> &args);
 
@@ -47,6 +51,20 @@ namespace FileSystem {
 
         bool script(const std::list<std::string> &args);
 
+        bool upload(const std::list<std::string> &args);
+
+        bool download(const std::list<std::string> &args);
+
+        bool edit(const std::list<std::string> &args);
+
+        bool rm(const std::list<std::string> &args);
+
+        bool printstruct(const std::list<std::string> &args);
+
+        bool rmdir(const std::list<std::string> &args);
+
+        bool clear(const std::list<std::string> &args);
+
 
         static bool exit(const std::list<std::string> &args);
 
@@ -54,6 +72,10 @@ namespace FileSystem {
 
         std::ostream &os;
         std::list<std::string> sessionUrl{};
+        std::function<void(const std::string &)> editExternalFile{};
+        bool editExternalFileAvailable{false};
+
+        std::string tempFolder{};
 
         Router router{};
         DocMap docs{};
@@ -63,7 +85,9 @@ namespace FileSystem {
 
         std::string localPrefixBuilder();
 
-        std::list<std::string> parseUrl(const std::string& url);
+        void resetUrl();
+
+        std::list<std::string> parseUrl(const std::string &url);
 
         void initRouterAndDocs();
 
