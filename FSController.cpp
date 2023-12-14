@@ -4,6 +4,7 @@
 
 #include "FSController.h"
 
+#include <ranges>
 #include <utility>
 
 namespace FileSystem {
@@ -236,7 +237,18 @@ namespace FileSystem {
         return newFilePos;
     }
 
-    void FSController::removeFile(const std::list<std::string> &_filePath) {
+    void FSController::printStructure(std::ostream &os) {
+        for (const auto &item: _diskEntity->getAll()) {
+            if (item.type == NodeType::File) {
+                os << item.ptr.file->toString(item.position);
+            } else if (item.type == NodeType::Empty) {
+                os << item.ptr.empty->toString(item.position);
+            }
+            os << endl;
+        }
+    }
+
+    void FSController::removeFile(const std::list<std::string> &_filePath, bool ignoreFolder) {
 
         auto filePath = _filePath;
 
@@ -251,15 +263,16 @@ namespace FileSystem {
 
             INode headFileINode = _diskEntity->fileINodeAt(lastFilePos);
 
-            if (headFileINode.name == fileName) { // 文件为根目录头文件
+            if (headFileINode.name == fileName) {
 
-                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                if (!ignoreFolder) {
+                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                }
 
                 _diskEntity->setRoot(headFileINode.next);
                 _diskEntity->removeFileAt(lastFilePos);
 
                 return;
-
             }
 
             u_int64 thisFilePos = headFileINode.next;
@@ -275,7 +288,9 @@ namespace FileSystem {
             }
 
             assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
-            assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+            if (!ignoreFolder) {
+                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+            }
 
             _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
             _diskEntity->removeFileAt(thisFilePos);
@@ -296,9 +311,11 @@ namespace FileSystem {
 
             INode headFileINode = _diskEntity->fileINodeAt(lastFilePos);
 
-            if (headFileINode.name == fileName) { // 文件为目录头文件
+            if (headFileINode.name == fileName) {
 
-                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                if (!ignoreFolder) {
+                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                }
 
                 dirFolderFile->data = IByteable::toBytes(headFileINode.next);
 
@@ -306,7 +323,6 @@ namespace FileSystem {
                 _diskEntity->removeFileAt(lastFilePos);
 
                 return;
-
             }
 
             u_int64 thisFilePos = headFileINode.next;
@@ -322,25 +338,58 @@ namespace FileSystem {
             }
 
             assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
-            assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+            if (!ignoreFolder) {
+                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+            }
 
             _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
             _diskEntity->removeFileAt(thisFilePos);
 
             return;
-
         }
     }
 
-    void FSController::printStructure(std::ostream& os) {
-        for (const auto &item: _diskEntity->getAll()) {
-            if (item.type == NodeType::File) {
-                os << item.ptr.file->toString(item.position);
-            } else if (item.type == NodeType::Empty) {
-                os << item.ptr.empty->toString(item.position);
+    void FSController::removeDir(const std::list<std::string> &_folderPath) {
+
+        auto folderPath = fixPath(_folderPath);
+
+        assert(!folderPath.empty(), "FSController::removeDir", "无法删除根目录");
+
+        auto folderPos = getFilePos(folderPath);
+
+        assert(folderPos != UNDEFINED, "FSController::removeDir");
+
+        auto inode = _diskEntity->fileINodeAt(folderPos);
+
+        if (inode.getType() == INode::UserFile) {
+            removeFile(_folderPath);
+        } else {
+            removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(folderPos)->data), _folderPath);
+            removeFile(_folderPath, true);
+        }
+    }
+
+    void FSController::removeDirRecursion(u_int64 headPosition, const std::list<std::string> &_folderPath) {
+        std::vector<std::pair<u_int64, INode>> subs{};
+
+        while (headPosition != UNDEFINED) {
+            auto inode = _diskEntity->fileINodeAt(headPosition);
+            subs.emplace_back(headPosition, inode);
+            headPosition = inode.next;
+        }
+
+        for (const auto& it : subs) {
+            if (it.second.getType() == INode::Folder) {
+                auto folderPath = _folderPath;
+                folderPath.push_back(it.second.name);
+                removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(it.first)->data), folderPath);
             }
-            os << endl;
+        }
+
+        for (auto & sub : std::ranges::reverse_view(subs)) {
+            auto filePath = _folderPath;
+            filePath.push_back(sub.second.name);
+            removeFile(filePath, true);
         }
     }
-
 } // FileSystem

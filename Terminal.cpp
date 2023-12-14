@@ -160,6 +160,13 @@ namespace FileSystem {
                 "clear\n"
                 "清空终端"
         };
+
+        router["rmdir"] = [this](const auto &args) {return rmdir(args);};
+        docs["rmdir"] = {
+                "删除目录",
+                "rmdir [目录]\n"
+                "删除目录"
+        };
     }
 
     std::string Terminal::localPrefixBuilder() {
@@ -197,7 +204,7 @@ namespace FileSystem {
     }
 
     void Terminal::assertConnection() {
-        assert(controller.good(), "Terminal::ls", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
+        assert(controller.good(), "Terminal::assertConnection", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
     }
 
 
@@ -467,10 +474,27 @@ namespace FileSystem {
 
         clearConsole();
 
-        return false;
+        return true;
     }
 
     void Terminal::resetUrl() {
         sessionUrl.clear();
+    }
+
+    bool Terminal::rmdir(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        if (args.size() != 1) {
+            os << "该指令需要且仅需要一个参数才能运行" << endl;
+            os << "详情见 help rmdir" << endl;
+            return false;
+        }
+
+        auto targetFileUrl = parseUrl(args.front());
+
+        controller.removeDir(targetFileUrl);
+
+        return true;
     }
 }

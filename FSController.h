@@ -28,16 +28,20 @@ namespace FileSystem {
 
         INode getINodeByPath(const std::list<std::string> &folderPath);
 
-        void removeFile(const std::list<std::string> &_filePath);
+        void removeFile(const std::list<std::string> &_filePath, bool ignoreFolder = false);
 
         void printStructure(std::ostream &os);
+
+        void removeDir(const std::list<std::string> &folderPath);
 
 
 #ifndef FS_DEBUG
     private:
 #endif
 
-        u_int64 getFilePos(const std::list<std::string> &_filePath) const;
+        void removeDirRecursion(u_int64 position, const std::list<std::string> &_folderPath);
+
+        [[nodiscard]] u_int64 getFilePos(const std::list<std::string> &_filePath) const;
 
         DiskEntity *_diskEntity{nullptr};
 
