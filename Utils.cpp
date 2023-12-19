@@ -37,7 +37,7 @@ ByteArray::ByteArray(const std::byte *bytes, size_t length) {
     }
 }
 
-std::byte *ByteArray::toBytes() {
+std::byte *ByteArray::data() {
     return _bytes.data();
 }
 
@@ -134,6 +134,22 @@ u_int64 parseSizeString(const std::string &sizeString) {
     return size;
 }
 
+std::string randomStr(int size, const std::string &valueFrom) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, valueFrom.size() - 1);
+
+    std::string result;
+    for (int i = 0; i < size; ++i) {
+        result += valueFrom[distrib(gen)];
+    }
+
+    return result;
+}
+
+void assertLazy(bool require, const std::string &func, std::function<std::string()> fun) {
+    if (!require) throw FileSystem::Error{func, fun()};
+}
 
 namespace FileSystem {
     NodeType getType(std::istream &startPos) {
@@ -149,7 +165,7 @@ namespace FileSystem {
 
         assert(bytes.size() >= 4);
 
-        std::string str{reinterpret_cast<char *>(bytes.toBytes()), 4};
+        std::string str{reinterpret_cast<char *>(bytes.data()), 4};
         if (str == "FILE") return FileSystem::File;
         if (str == "EMPT") return FileSystem::Empty;
         return FileSystem::Undefined;

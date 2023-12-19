@@ -9,18 +9,45 @@
 
 namespace FileSystem {
 
+    FSController::EditSession::EditSession(
+            ByteArray fileData,
+            INode oldINode,
+            std::list<std::string> oldPath,
+            std::function<bool(const ByteArray &, INode oldINode, std::list<std::string> oldPath)> onFinish,
+            std::function<void(std::list<std::string> oldPath)> onCancel) :
+            _fileData{std::move(fileData)},
+            _onFinish{std::move(onFinish)},
+            _oldINode{std::move(oldINode)},
+            _onCancel{std::move(onCancel)},
+            _oldPath{std::move(oldPath)} {}
+
+    ByteArray FSController::EditSession::getFileData() {
+        return _fileData;
+    }
+
+    bool FSController::EditSession::assignEditFinish(const ByteArray &newData) {
+        return _onFinish(newData, _oldINode, _oldPath);
+    }
+
+    std::string FSController::EditSession::getFileName() {
+        return pathStr(_oldPath, false);
+    }
+
+    void FSController::EditSession::cancelEdit() {
+        _onCancel(_oldPath);
+    }
+
     bool FSController::good() const {
-        return this->_diskEntity != nullptr;
+        return _diskEntity != nullptr;
     }
 
     void FSController::create(u_int64 size, std::string path, const std::string &root_password) {
-        this->_diskEntity = new DiskEntity{size, std::move(path), root_password};
+        _diskEntity = new DiskEntity{size, std::move(path), root_password};
     }
 
     void FSController::setPath(std::string path) {
-        this->_diskEntity = new DiskEntity{std::move(path)};
+        _diskEntity = new DiskEntity{std::move(path)};
     }
-
 
     u_int64 FSController::getFilePos(const std::list<std::string> &_filePath) const {
 
@@ -75,7 +102,8 @@ namespace FileSystem {
         return _diskEntity->getPath();
     }
 
-    u_int64 FSController::createDir(const std::list<std::string> &folderPath, std::string fileName) {
+    u_int64 FSController::createDir(const std::list<std::string> &folderPath, std::string fileName,
+                                    INode::PermissionGroup permission) {
 
         auto dirFiles = getDir(fixPath(folderPath));
 
@@ -92,7 +120,7 @@ namespace FileSystem {
         );
 
         // 创建并添加新的文件夹
-        INode newFolderINode{fileName, 8, std::byte{0xFF}, INode::FOLDER_TYPE, 0, UNDEFINED};
+        INode newFolderINode{fileName, 8, permission, INode::FOLDER_TYPE, 0, UNDEFINED};
         auto createPos = _diskEntity->addFile(newFolderINode, IByteable::toBytes(UNDEFINED));
 
         assert(createPos != UNDEFINED, "FSController::createDir", "文件夹创建失败：当前系统已没有足够空间！");
@@ -161,7 +189,9 @@ namespace FileSystem {
     }
 
     u_int64
-    FSController::createFile(const std::list<std::string> &_folderPath, std::string fileName, const ByteArray &data) {
+    FSController::createFile(const std::list<std::string> &_folderPath, std::string fileName, const ByteArray &data,
+                             INode::PermissionGroup permission) {
+
 
         auto dirFiles = getDir(fixPath(_folderPath));
 
@@ -191,7 +221,7 @@ namespace FileSystem {
                 INode{
                         std::move(fileName),
                         data.size(),
-                        std::byte{0xFF},
+                        permission,
                         std::byte{0},
                         0,
                         UNDEFINED
@@ -248,11 +278,25 @@ namespace FileSystem {
         }
     }
 
-    void FSController::removeFile(const std::list<std::string> &_filePath, bool ignoreFolder) {
+    void FSController::removeFile(const std::list<std::string> &_filePath, bool ignoreFolder, std::ostream *os) {
+
+        if (os != nullptr) {
+            *os << "删除： " << pathStr(_filePath, false) << endl;
+        }
 
         auto filePath = _filePath;
 
-        assert(!filePath.empty(), "FSController::removeFile", "无法删除根目录！");
+        assert(
+                !filePath.empty(),
+                "FSController::removeFile",
+                "无法删除根目录！"
+        );
+
+        assert(
+                _diskEntity->fileINodeAt(getFilePos(filePath)).assertPermission(INode::Edit, role),
+                "FSController::removeDir",
+                "没有足够的权限！"
+        );
 
         auto fileName = filePath.back();
         filePath.pop_back();
@@ -266,7 +310,7 @@ namespace FileSystem {
             if (headFileINode.name == fileName) {
 
                 if (!ignoreFolder) {
-                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件0");
                 }
 
                 _diskEntity->setRoot(headFileINode.next);
@@ -289,7 +333,7 @@ namespace FileSystem {
 
             assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
             if (!ignoreFolder) {
-                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件1");
             }
 
             _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
@@ -314,7 +358,7 @@ namespace FileSystem {
             if (headFileINode.name == fileName) {
 
                 if (!ignoreFolder) {
-                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                    assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件2");
                 }
 
                 dirFolderFile->data = IByteable::toBytes(headFileINode.next);
@@ -339,7 +383,7 @@ namespace FileSystem {
 
             assert(thisFilePos != UNDEFINED, "FSController::removeFile", "目标文件不存在");
             if (!ignoreFolder) {
-                assert(headFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件");
+                assert(thisFileINode.getType() == INode::UserFile, "FSController::removeFile", "目标项目不为文件3");
             }
 
             _diskEntity->updateNextAt(lastFilePos, thisFileINode.next);
@@ -349,7 +393,7 @@ namespace FileSystem {
         }
     }
 
-    void FSController::removeDir(const std::list<std::string> &_folderPath) {
+    void FSController::removeDir(const std::list<std::string> &_folderPath, std::ostream *os) {
 
         auto folderPath = fixPath(_folderPath);
 
@@ -361,15 +405,18 @@ namespace FileSystem {
 
         auto inode = _diskEntity->fileINodeAt(folderPos);
 
+        assert(inode.assertPermission(INode::Edit, role), "FSController::removeDir", "没有足够的权限");
+
         if (inode.getType() == INode::UserFile) {
-            removeFile(_folderPath);
+            removeFile(_folderPath, os);
         } else {
-            removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(folderPos)->data), _folderPath);
-            removeFile(_folderPath, true);
+            removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(folderPos)->data), _folderPath, os);
+            removeFile(_folderPath, true, os);
         }
     }
 
-    void FSController::removeDirRecursion(u_int64 headPosition, const std::list<std::string> &_folderPath) {
+    void FSController::removeDirRecursion(u_int64 headPosition, const std::list<std::string> &_folderPath,
+                                          std::ostream *os) {
         std::vector<std::pair<u_int64, INode>> subs{};
 
         while (headPosition != UNDEFINED) {
@@ -378,18 +425,96 @@ namespace FileSystem {
             headPosition = inode.next;
         }
 
-        for (const auto& it : subs) {
+        for (const auto &it: subs) {
             if (it.second.getType() == INode::Folder) {
                 auto folderPath = _folderPath;
                 folderPath.push_back(it.second.name);
-                removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(it.first)->data), folderPath);
+                removeDirRecursion(IByteable::fromBytes<u_int64>(_diskEntity->fileAt(it.first)->data), folderPath, os);
             }
         }
 
-        for (auto & sub : std::ranges::reverse_view(subs)) {
+        for (auto &sub: std::ranges::reverse_view(subs)) {
             auto filePath = _folderPath;
             filePath.push_back(sub.second.name);
-            removeFile(filePath, true);
+            removeFile(filePath, true, os);
         }
     }
+
+    void FSController::changeRole(INode::Role targetRole, const std::string &password) {
+        if (targetRole == INode::Admin) {
+            assert(_diskEntity->assertSuperUser(password), "FSController::changeRole", "超级用户密码错误");
+        }
+
+        role = targetRole;
+    }
+
+    FSController::EditSession FSController::editFile(const std::list<std::string> &filePath) {
+
+        auto targetFile = _diskEntity->fileAt(getFilePos(filePath));
+
+        assert(
+                targetFile->inode.getType() == INode::UserFile,
+                "FSController::editFile",
+                "目标项目不为文件"
+        );
+
+        assert(
+                targetFile->inode.assertPermission(INode::Edit, role),
+                "FSController::editFile",
+                "没有足够的权限"
+        );
+
+        return {
+                targetFile->data,
+                targetFile->inode,
+                filePath,
+                [this](
+                        const auto &_0,
+                        const auto &_1,
+                        const auto &_2
+                ) -> bool {
+                    try {
+                        auto res = updateFile(_0, _1, _2);
+                        releaseWriteLock(_2);
+                        return res;
+                    } catch (Error &e) {
+                        releaseWriteLock(_2);
+                        throw e;
+                    }
+                },
+                [this](
+                        const auto &_0
+                ) {
+                    releaseWriteLock(_0);
+                }
+        };
+
+    }
+
+    u_int64 FSController::createFile(
+            const std::list<std::string> &_filePath,
+            const ByteArray &data,
+            INode::PermissionGroup permission) {
+
+        auto path = _filePath;
+
+        auto fileName = path.back();
+        path.pop_back();
+
+        return createFile(path, fileName, data, permission);
+    }
+
+    bool
+    FSController::updateFile(const ByteArray &newData, const INode &oldINode, const std::list<std::string> &oldPath) {
+        removeFile(oldPath);
+        return createFile(oldPath, newData, oldINode.permission) != UNDEFINED;
+    }
+
+    void FSController::releaseWriteLock(const std::list<std::string> &oldPath) {
+        /**
+         * TODO
+         */
+    }
+
+
 } // FileSystem

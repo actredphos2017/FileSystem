@@ -27,7 +27,7 @@ namespace FileSystem {
 
         try {
             auto target = router.at(decompose.first);
-            return target(decompose.second);
+            target(decompose.second);
         } catch (std::out_of_range &) {
             os << "未知命令：" << decompose.first << endl;
         } catch (Error &e) {
@@ -71,11 +71,19 @@ namespace FileSystem {
         f.close();
     }
 
+    int Terminal::assertArgSize(const std::list<std::string> &args, const std::vector<int> &allowSizes,
+                                const std::string &cmd) {
+        if (std::any_of(allowSizes.begin(), allowSizes.end(),
+                        [&args](const auto &it) -> bool { return args.size() == it; }))
+            return args.size();
+
+        throw Error{"Terminal::assertArgSize", "不支持的参数数量：输入 [help " + cmd + "] 查看指令详细用法"};
+    }
 
     void Terminal::initRouterAndDocs() {
-        router["help"] = [this](const auto &args) { return help(args); };
+        router["help"] = [this](const auto &args) { help(args); };
 
-        router["link"] = [this](const auto &args) { return link(args); };
+        router["link"] = [this](const auto &args) { link(args); };
         docs["link"] = {
                 "链接到目标文件系统。",
                 "link [文件系统路径]"
@@ -86,7 +94,7 @@ namespace FileSystem {
                 "输入 \"help create\" 查看更多信息。"
         };
 
-        router["create"] = [this](const auto &args) { return create(args); };
+        router["create"] = [this](const auto &args) { create(args); };
         docs["create"] = {
                 "创建一个新的文件系统",
                 "create [文件系统创建路径] [文件系统大小] [管理员密码]\n"
@@ -96,35 +104,35 @@ namespace FileSystem {
                 "创建完成后终端将自动连接该文件系统"
         };
 
-        router["ls"] = [this](const auto &args) { return ls(args); };
+        router["ls"] = [this](const auto &args) { ls(args); };
         docs["ls"] = {
                 "显示目录下的项目",
                 "ls {可选：目录名}\n"
                 "显示目标目录下的项目"
         };
 
-        router["mkdir"] = [this](const auto &args) { return mkdir(args); };
+        router["mkdir"] = [this](const auto &args) { mkdir(args); };
         docs["mkdir"] = {
                 "创建新的文件夹",
                 "mkdir [文件夹名称]\n"
                 "在当前目录下创建新的文件夹"
         };
 
-        router["exit"] = [](const auto &args) { return exit(args); };
+        router["exit"] = [](const auto &args) { exit(args); };
         docs["exit"] = {
                 "离开",
                 "exit\n"
                 "点开连接并退出程序"
         };
 
-        router["cd"] = [this](const auto &args) { return cd(args); };
+        router["cd"] = [this](const auto &args) { cd(args); };
         docs["cd"] = {
                 "进入目录",
                 "cd [目录]\n"
                 "进入到目标目录"
         };
 
-        router["script"] = [this](const auto &args) { return script(args); };
+        router["script"] = [this](const auto &args) { script(args); };
         docs["script"] = {
                 "执行脚本",
                 "script [external / internal] [文件地址]\n"
@@ -133,40 +141,81 @@ namespace FileSystem {
                 "参数为 internal 时将执行内部文件(权限必须为可执行)"
         };
 
-        router["upload"] = [this](const auto &args) { return upload(args); };
+        router["upload"] = [this](const auto &args) { upload(args); };
         docs["upload"] = {
                 "从外部上传文件",
                 "upload [外部文件地址] {可选: 文件路径 / 文件名}\n"
                 "从外部上传文件"
         };
 
-        router["rm"] = [this](const auto &args) { return rm(args); };
+        router["rm"] = [this](const auto &args) { rm(args); };
         docs["rm"] = {
                 "删除目标文件",
                 "rm [文件地址]\n"
                 "不可用于删除文件夹"
         };
 
-        router["struct"] = [this](const auto &args) { return printstruct(args); };
+        router["struct"] = [this](const auto &args) { printstruct(args); };
         docs["struct"] = {
                 "打印磁盘结构",
                 "struct\n"
                 "输出磁盘结构"
         };
 
-        router["clear"] = [this](const auto &args) { return clear(args); };
+        router["clear"] = [](const auto &args) { clear(args); };
         docs["clear"] = {
                 "清空终端",
                 "clear\n"
                 "清空终端"
         };
 
-        router["rmdir"] = [this](const auto &args) {return rmdir(args);};
+        router["rmdir"] = [this](const auto &args) { rmdir(args); };
         docs["rmdir"] = {
                 "删除目录",
                 "rmdir [目录]\n"
                 "删除目录"
         };
+
+        router["edit"] = [this](const auto &args) { edit(args); };
+        docs["edit"] = {
+                "编辑文件，文件不存在自动创建",
+                "edit [文件路径] {临时文件后缀}\n"
+                "使用外部编辑器编辑文本文件\n"
+                "文件不存在则自动创建\n"
+                "使用 Terminal::assignEditor 设置外部编辑器\n"
+                "使用 Terminal::assignTempFolder 设置外部临时文件夹"
+        };
+
+        router["editdone"] = [this](const auto &args) { editdone(args); };
+        docs["editdone"] = {
+                "保存文件编辑，释放文件写锁",
+                "editdone\n"
+                "结束文件编辑，释放文件写锁\n"
+                "执行后无论是否失败，均会释放文件写锁"
+        };
+
+        router["editcancel"] = [this](const auto &args) { editcancel(args); };
+        docs["editcancel"] = {
+                "取消文件编辑，释放文件写锁",
+                "editcancel\n"
+                "取消文件编辑，释放文件写锁"
+        };
+
+        router["su"] = [this](const auto &args) { su(args); };
+        docs["su"] = {
+                "将身份切换到超级用户",
+                "su [超级用户密码]\n"
+                "将身份切换到超级用户"
+        };
+
+        router["us"] = [this](const auto &args) { us(args); };
+        docs["us"] = {
+                "将身份切换到普通用户",
+                "us\n"
+                "将身份切换到普通用户"
+        };
+
+
     }
 
     std::string Terminal::localPrefixBuilder() {
@@ -204,11 +253,12 @@ namespace FileSystem {
     }
 
     void Terminal::assertConnection() {
-        assert(controller.good(), "Terminal::assertConnection", "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
+        assert(controller.good(), "Terminal::assertConnection",
+               "当前未链接到文件系统，请使用 link 或 create 链接、创建文件系统。");
     }
 
 
-    bool Terminal::help(const std::list<std::string> &args) {
+    void Terminal::help(const std::list<std::string> &args) {
         if (args.empty()) {
             os << "可用命令：" << endl;
             for (const auto &doc: docs) {
@@ -223,18 +273,13 @@ namespace FileSystem {
                 os << targetDoc.second << endl;
             } catch (std::out_of_range &) {
                 os << "无法找到有关指令 " << args.front() << " 的文档。" << endl;
-                return false;
             }
         }
-        return true;
     }
 
-    bool Terminal::link(const std::list<std::string> &args) {
-        if (args.size() != 1) {
-            os << "指令需要且仅需要一个参数才能执行！" << endl;
-            os << "使用 help link 查看更多信息" << endl;
-            return false;
-        }
+    void Terminal::link(const std::list<std::string> &args) {
+
+        assertArgSize(args, {1}, "link");
 
         const std::string &pathHolder = args.front();
 
@@ -243,16 +288,12 @@ namespace FileSystem {
         os << "链接成功！" << endl;
 
         resetUrl();
-
-        return true;
     }
 
-    bool Terminal::create(const std::list<std::string> &args) {
-        if (args.size() != 3) {
-            os << "指令需要三个参数才能执行\n" << endl;
-            os << "使用 help create 查看更多信息" << endl;
-            return false;
-        }
+    void Terminal::create(const std::list<std::string> &args) {
+
+        assertArgSize(args, {3}, "create");
+
         auto iter = args.begin();
         std::string pathHolder = *(iter++);
         std::string sizeStr = *(iter++);
@@ -263,29 +304,25 @@ namespace FileSystem {
             controller.create(size, pathHolder, rootPassword);
             os << "创建成功！" << endl;
         } catch (size_format_error &) {
-            os << "非法的大小输入: " << sizeStr << endl;
-            return false;
+
+            throw Error{"Terminal::create", "非法的大小输入: " + sizeStr};
         }
 
         resetUrl();
-
-        return true;
     }
 
-    bool Terminal::ls(const std::list<std::string> &args) {
+    void Terminal::ls(const std::list<std::string> &args) {
 
         assertConnection();
 
         std::list<std::string> target;
 
-        if (args.empty()) {
-            target = sessionUrl;
-        } else if (args.size() == 1) {
+        auto argSize = assertArgSize(args, {0, 1}, "ls");
+
+        if (argSize == 1) {
             target = parseUrl(args.front());
         } else {
-            os << "指令不需要或仅需要一个参数才能执行！" << endl;
-            os << "使用 help ls 查看更多信息" << endl;
-            return false;
+            target = sessionUrl;
         }
 
         auto targetStr = pathStr(target);
@@ -303,37 +340,26 @@ namespace FileSystem {
                 os << endl;
             }
         }
-        return true;
     }
 
-    bool Terminal::mkdir(const std::list<std::string> &args) {
+    void Terminal::mkdir(const std::list<std::string> &args) {
 
         assertConnection();
 
-        if (args.size() != 1) {
-            os << "指令需要且仅需要一个参数才能执行！" << endl;
-            os << "使用 help mkdir 查看更多信息" << endl;
-            return false;
-        }
+        assertArgSize(args, {1}, "mkdir");
 
         controller.createDir(sessionUrl, args.front());
         os << "目录创建成功" << endl;
-        return true;
     }
 
-    bool Terminal::exit(const std::list<std::string> &) {
+    void Terminal::exit(const std::list<std::string> &) {
         throw ExitSignal();
     }
 
-    bool Terminal::cd(const std::list<std::string> &args) {
+    void Terminal::cd(const std::list<std::string> &args) {
 
         assertConnection();
-
-        if (args.size() != 1) {
-            os << "指令需要且仅需要一个参数才能执行！" << endl;
-            os << "使用 help cd 查看更多信息" << endl;
-            return false;
-        }
+        assertArgSize(args, {1}, "cd");
 
         auto targetPath = parseUrl(args.front());
 
@@ -345,15 +371,11 @@ namespace FileSystem {
             sessionUrl = fixPath(targetPath);
         }
         os << "已到达路径：" << getUrl() << endl;
-        return true;
     }
 
-    bool Terminal::script(const std::list<std::string> &args) {
-        if (args.size() != 2) {
-            os << "指令需要两个参数才能执行！" << endl;
-            os << "使用 help script 查看更多信息" << endl;
-            return false;
-        }
+    void Terminal::script(const std::list<std::string> &args) {
+
+        assertArgSize(args, {2}, "script");
 
         const auto &path = args.back();
 
@@ -366,23 +388,24 @@ namespace FileSystem {
         } else if (args.front() == "internal") {
             assert(std::filesystem::exists(path), "Terminal::script", "TODO: 功能未实现");
         } else {
-            os << "首个参数必须为 external 或 internal ，详见 help script" << endl;
-            return false;
+            throw Error{"Terminal::script", "首个参数必须为 external 或 internal ，详见 help script"};
         }
-
-        return true;
     }
 
     void Terminal::assignEditor(const std::string &editorApplication, const std::string &withArgs) {
 
-        auto systemCmd = editorApplication;
+        editCmdApp = '\"' + editorApplication + '\"';
 
         if (!withArgs.empty()) {
-            systemCmd.append(" " + withArgs);
+            editCmdApp.append(" " + withArgs);
         }
 
-        editExternalFile = [&systemCmd](const std::string &path) {
-            system((systemCmd + " " + path).c_str());
+        editCmdApp += " ";
+
+        editExternalFile = [this](const std::string &path) {
+            auto cmd = editCmdApp + path;
+            os << "执行命令： " << cmd << endl;
+            system(cmd.c_str());
         };
 
         editExternalFileAvailable = true;
@@ -411,24 +434,22 @@ namespace FileSystem {
         tempFolder = _folderPath;
     }
 
-    bool Terminal::upload(const std::list<std::string> &args) {
+    void Terminal::upload(const std::list<std::string> &args) {
 
         assertConnection();
 
         std::string fileName;
         std::list<std::string> targetPath;
 
-        if (args.size() == 1) {
+        auto argSize = assertArgSize(args, {1, 2}, "upload");
+
+        if (argSize == 1) {
             fileName = splitString(args.front(), '/').back();
             targetPath = sessionUrl;
-        } else if (args.size() == 2) {
+        } else {
             targetPath = parseUrl(args.back());
             fileName = targetPath.back();
             targetPath.pop_back();
-        } else {
-            os << "该指令需要一个或两个参数才能运行" << endl;
-            os << "详情见 help upload" << endl;
-            return false;
         }
 
         auto fSize = std::filesystem::file_size(args.front());
@@ -440,61 +461,152 @@ namespace FileSystem {
         f.close();
 
         controller.createFile(targetPath, fileName, data);
-
-        return true;
     }
 
-    bool Terminal::rm(const std::list<std::string> &args) {
+    void Terminal::rm(const std::list<std::string> &args) {
 
         assertConnection();
 
-        if (args.size() != 1) {
-            os << "该指令需要且仅需要一个参数才能运行" << endl;
-            os << "详情见 help rm" << endl;
-            return false;
-        }
+        assertArgSize(args, {1}, "rm");
 
         auto targetFileUrl = parseUrl(args.front());
 
-        controller.removeFile(targetFileUrl);
-
-        return true;
+        controller.removeFile(targetFileUrl, false, &os);
     }
 
-    bool Terminal::printstruct(const std::list<std::string> &) {
+    void Terminal::printstruct(const std::list<std::string> &) {
 
         assertConnection();
 
         controller.printStructure(os);
-
-        return true;
     }
 
-    bool Terminal::clear(const std::list<std::string> &) {
-
+    void Terminal::clear(const std::list<std::string> &) {
         clearConsole();
-
-        return true;
     }
 
     void Terminal::resetUrl() {
         sessionUrl.clear();
     }
 
-    bool Terminal::rmdir(const std::list<std::string> &args) {
+    void Terminal::rmdir(const std::list<std::string> &args) {
 
         assertConnection();
 
-        if (args.size() != 1) {
-            os << "该指令需要且仅需要一个参数才能运行" << endl;
-            os << "详情见 help rmdir" << endl;
-            return false;
-        }
+        assertArgSize(args, {1}, "rmdir");
 
         auto targetFileUrl = parseUrl(args.front());
 
-        controller.removeDir(targetFileUrl);
-
-        return true;
+        controller.removeDir(targetFileUrl, &os);
     }
+
+    void Terminal::edit(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        assertEditable();
+
+        assertLazy(editSession == nullptr, "Terminal::edit",
+                   [this]() { return "当前已存在正在编辑的文件：" + editSession->getFileName(); });
+
+        auto argSize = assertArgSize(args, {1, 2}, "edit");
+
+        editSession = new FSController::EditSession{controller.editFile(parseUrl(args.front()))};
+
+        tempFileName = tempFolder + randomStr(16);
+
+        if (argSize == 2) {
+            tempFileName += ("." + args.back());
+        } else {
+            tempFileName += ".txt";
+        }
+
+        std::ofstream tempFile{tempFileName, std::ios::out | std::ios::trunc};
+
+        assert(tempFile.is_open(), "Terminal::edit", "临时文件创建失败");
+
+        tempFile.write(reinterpret_cast<char *>(editSession->getFileData().data()), editSession->getFileData().size());
+
+        tempFile.close();
+
+        editExternalFile(tempFileName);
+
+        os << "已开始编辑文件\n编辑结束后，输入 editdone 以保存编辑，输入 editcancel 以取消编辑。" << endl;
+    }
+
+    void Terminal::assertEditable() {
+        assert(editExternalFileAvailable, "Terminal::assertEditable", "未声明外部文件编辑器");
+        assert(!tempFolder.empty(), "Terminal::assertEditable", "未声明临时文件夹");
+    }
+
+    void Terminal::su(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        assertArgSize(args, {1}, "su");
+
+        controller.changeRole(INode::Admin, args.front());
+    }
+
+    void Terminal::us(const std::list<std::string> &) {
+
+        assertConnection();
+
+        controller.changeRole(INode::User);
+    }
+
+    void Terminal::editdone(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        assert(editSession != nullptr, "Terminal::edit", "当前不存在正在编辑的文件");
+
+        if (!std::filesystem::is_regular_file(tempFileName)) {
+            tempFileName = "";
+            editSession->cancelEdit();
+            delete editSession;
+            editSession = nullptr;
+            throw Error{"Terminal::editdone", "更新失败：临时文件被销毁，文件写锁已被重置！"};
+        }
+
+        auto newFileSize = std::filesystem::file_size(tempFileName);
+
+        char *buf = new char[newFileSize];
+
+        std::ifstream i{tempFileName};
+
+        i.read(buf, newFileSize);
+
+        i.close();
+
+        try {
+            editSession->assignEditFinish(ByteArray(reinterpret_cast<std::byte *>(buf), newFileSize));
+        } catch (Error& e){
+            std::filesystem::remove(tempFileName);
+            tempFileName = "";
+            delete editSession;
+            editSession = nullptr;
+            throw Error{"Terminal::editdone", std::string{"更新失败！文件写锁已被重置！\n 错误原因："} + e.what()};
+        }
+
+    }
+
+    void Terminal::editcancel(const std::list<std::string> &args) {
+
+        assertConnection();
+
+        assert(editSession != nullptr, "Terminal::edit", "当前不存在正在编辑的文件");
+
+        if (std::filesystem::is_regular_file(tempFileName)) {
+            std::filesystem::remove(tempFileName);
+        }
+
+        tempFileName = "";
+        editSession->cancelEdit();
+        delete editSession;
+        editSession = nullptr;
+
+    }
+
+
 }

@@ -62,7 +62,7 @@ namespace FileSystem {
 
     void FileLinker::write(u_int64 position, u_int64 offset, ByteArray byteArray) const {
         doWithFileO(position, offset, [&](std::ofstream &file) {
-            file.write(reinterpret_cast<const char *>(byteArray.toBytes()),
+            file.write(reinterpret_cast<const char *>(byteArray.data()),
                        static_cast<std::streamsize>(byteArray.size()));
         });
     }

@@ -14,7 +14,7 @@
 
 namespace FileSystem {
 
-    typedef std::unordered_map<std::string, std::function<bool(const std::list<std::string> &)>> Router;
+    typedef std::unordered_map<std::string, std::function<void(const std::list<std::string> &)>> Router;
 
     typedef std::unordered_map<std::string, std::pair<std::string, std::string>> DocMap;
 
@@ -37,36 +37,44 @@ namespace FileSystem {
         void assignTempFolder(const std::string &_folderPath);
 
 
-        bool help(const std::list<std::string> &args);
+        void help(const std::list<std::string> &args);
 
-        bool link(const std::list<std::string> &args);
+        void link(const std::list<std::string> &args);
 
-        bool create(const std::list<std::string> &args);
+        void create(const std::list<std::string> &args);
 
-        bool ls(const std::list<std::string> &args);
+        void ls(const std::list<std::string> &args);
 
-        bool mkdir(const std::list<std::string> &args);
+        void mkdir(const std::list<std::string> &args);
 
-        bool cd(const std::list<std::string> &args);
+        void cd(const std::list<std::string> &args);
 
-        bool script(const std::list<std::string> &args);
+        void script(const std::list<std::string> &args);
 
-        bool upload(const std::list<std::string> &args);
+        void upload(const std::list<std::string> &args);
 
-        bool download(const std::list<std::string> &args);
+        void download(const std::list<std::string> &args);
 
-        bool edit(const std::list<std::string> &args);
+        void edit(const std::list<std::string> &args);
 
-        bool rm(const std::list<std::string> &args);
+        void editdone(const std::list<std::string> &args);
 
-        bool printstruct(const std::list<std::string> &args);
+        void editcancel(const std::list<std::string> &args);
 
-        bool rmdir(const std::list<std::string> &args);
+        void rm(const std::list<std::string> &args);
 
-        bool clear(const std::list<std::string> &args);
+        void printstruct(const std::list<std::string> &args);
+
+        void rmdir(const std::list<std::string> &args);
+
+        static void clear(const std::list<std::string> &args);
+
+        void su(const std::list<std::string> &args);
+
+        void us(const std::list<std::string> &args);
 
 
-        static bool exit(const std::list<std::string> &args);
+        static void exit(const std::list<std::string> &args);
 
     private:
 
@@ -75,7 +83,11 @@ namespace FileSystem {
         std::function<void(const std::string &)> editExternalFile{};
         bool editExternalFileAvailable{false};
 
+        FSController::EditSession *editSession{nullptr};
+
         std::string tempFolder{};
+        std::string editCmdApp{};
+        std::string tempFileName{};
 
         Router router{};
         DocMap docs{};
@@ -85,6 +97,9 @@ namespace FileSystem {
 
         std::string localPrefixBuilder();
 
+        static int
+        assertArgSize(const std::list<std::string> &args, const std::vector<int> &allowSizes, const std::string &cmd);
+
         void resetUrl();
 
         std::list<std::string> parseUrl(const std::string &url);
@@ -92,6 +107,8 @@ namespace FileSystem {
         void initRouterAndDocs();
 
         void assertConnection();
+
+        void assertEditable();
     };
 
     class ExitSignal : std::exception {

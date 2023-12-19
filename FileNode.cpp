@@ -20,16 +20,16 @@ namespace FileSystem {
                 reinterpret_cast<const char *>(
                         ByteArray()
                                 .read(istream, static_cast<unsigned char>(nameSize), false)
-                                .toBytes()
+                                .data()
                 ),
                 static_cast<unsigned char>(nameSize)
         };
 
         res->size = IByteable::fromBytes<u_int64>(ByteArray().read(istream, 8, false));
 
-        res->permission = *(ByteArray().read(istream, 1, false).toBytes());
+        res->permission = PermissionGroup::fromByte(*(ByteArray().read(istream, 1, false).data()));
 
-        res->type = *(ByteArray().read(istream, 1, false).toBytes());
+        res->type = *(ByteArray().read(istream, 1, false).data());
 
         res->openCounter = IByteable::fromBytes<int>(ByteArray().read(istream, 4, false));
 
@@ -69,6 +69,44 @@ namespace FileSystem {
         return res;
     }
 
+    INode::PermissionGroup INode::getPermission() const {
+        return INode::PermissionGroup();
+    }
+
+    bool INode::assertPermission(INode::PermissionType _type, INode::Role _role) {
+
+        if (_role == Admin) {
+            switch (_type) {
+                case INode::PermissionType::Edit:
+                    return permission.admin.editable;
+                case INode::PermissionType::Read:
+                    return permission.admin.readable;
+                case INode::PermissionType::Execute:
+                    return permission.admin.runnable;
+            }
+        } else {
+            switch (_type) {
+                case INode::PermissionType::Edit:
+                    return permission.user.editable;
+                case INode::PermissionType::Read:
+                    return permission.user.readable;
+                case INode::PermissionType::Execute:
+                    return permission.user.runnable;
+            }
+        }
+
+        return false;
+    }
+
+    INode::INode(std::string name, u_int64 size, INode::PermissionGroup permission, std::byte type, int openCounter,
+                 u_int64 next)
+            : name{std::move(name)},
+              size(size),
+              permission(permission),
+              type(type),
+              openCounter(openCounter),
+              next(next) {}
+
     FileNode::FileNode(u_int64 lastNode, u_int64 nextNode, INode iNode, u_int64 expansionSize, ByteArray data) :
             lastNode(lastNode),
             nextNode(nextNode),
@@ -91,7 +129,7 @@ namespace FileSystem {
                 .append(inode.toBytes())
                 .append(IByteable::toBytes(expansionSize))
                 .append(data);
-        assert(res.size() + expansionSize == mainSize(), "FileNode::toBytes");
+        assert(res.size() + expansionSize == mainSize(), "FileNode::data");
         return res;
     }
 
@@ -115,7 +153,7 @@ namespace FileSystem {
 
         ss << "===== FILE =====" << std::hex << endl;
         if (pos != 0) {
-            ss << "DiskPos: "<< pos << endl;
+            ss << "DiskPos: " << pos << endl;
         }
         ss << "Name: " << inode.name << endl;
         ss << "Size: " << inode.size << endl;
@@ -123,7 +161,7 @@ namespace FileSystem {
         auto type = inode.getType();
 
         ss << "Type: " << INode::typeStr(type) << endl;
-        ss << "Permission: " << (int)static_cast<unsigned char>(inode.permission) << endl;
+        ss << "Permission: " << (int) static_cast<unsigned char>(inode.permission.toByte()) << endl;
         ss << "Next: " << inode.next << endl;
         ss << "Expansion: " << expansionSize << endl;
 
@@ -134,5 +172,35 @@ namespace FileSystem {
         ss << std::dec;
 
         return ss.str();
+    }
+
+    std::byte INode::PermissionGroup::toByte() const {
+
+        unsigned char ar = admin.readable << 6;
+        unsigned char aw = admin.editable << 5;
+        unsigned char ae = admin.runnable << 4;
+        unsigned char ur = user.readable << 2;
+        unsigned char uw = user.editable << 1;
+        unsigned char ue = user.runnable << 0;
+
+        return static_cast<std::byte> (ar | aw | ae | ur | uw | ue);
+    }
+
+    INode::PermissionGroup INode::PermissionGroup::fromByte(std::byte permission) {
+
+        auto p = static_cast<unsigned char>(permission);
+
+        return INode::PermissionGroup{
+                {
+                        static_cast<bool>((p >> 6) & 0x01),
+                        static_cast<bool>((p >> 5) & 0x01),
+                        static_cast<bool>((p >> 4) & 0x01)
+                },
+                {
+                        static_cast<bool>((p >> 2) & 0x01),
+                        static_cast<bool>((p >> 1) & 0x01),
+                        static_cast<bool>((p >> 0) & 0x01)
+                }
+        };
     }
 } // FileSystem

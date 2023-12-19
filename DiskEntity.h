@@ -13,6 +13,7 @@
 #include <functional>
 #include "FileNode.h"
 #include "Utils.h"
+#include "SHA256.h"
 #include "EmptyNode.h"
 #include "FileLinker.h"
 
@@ -46,6 +47,7 @@ namespace FileSystem {
         const static u_int64 ROOT_START = 16;
         const static u_int64 EMPTY_START = 24;
         const static u_int64 FILE_INDEX_START = 64;
+        const static u_int64 SUPERUSER_PASSWORD_START = 32;
 
     public:
         // 创建新的虚拟磁盘
@@ -82,12 +84,7 @@ namespace FileSystem {
 
         u_int64 getFirstEmpty();
 
-//
-//        // 更新某个位置的文件，返回新的文件位置（若改变），空间已满，更新失败返回 nullptr
-//        u_int64 *update(u_int64 originLoc, const FileNode &newFile);
-//
-//        // 全盘优化磁盘碎片
-//        void optimize();
+        bool assertSuperUser(std::string password);
 
         std::list<NodePtr> getAll();
 

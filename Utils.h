@@ -11,6 +11,8 @@
 #include <list>
 #include <sstream>
 #include <algorithm>
+#include <random>
+#include <functional>
 
 typedef unsigned long long u_int64;
 
@@ -25,7 +27,7 @@ public:
 
     ByteArray(const std::byte *bytes, size_t length);
 
-    std::byte *toBytes();
+    std::byte *data();
 
     ByteArray &append(const std::byte *bytes, u_int64 length);
 
@@ -61,7 +63,7 @@ public:
     static T fromBytes(ByteArray array) {
         static_assert(std::is_trivially_copyable<T>::value, "Type T must be trivially copyable");
         T *result = reinterpret_cast<T *>(malloc(sizeof(T)));
-        std::memcpy(result, array.toBytes(), sizeof(T));
+        std::memcpy(result, array.data(), sizeof(T));
         return *result;
     }
 };
@@ -73,7 +75,7 @@ class size_format_error : std::exception {
 
 u_int64 parseSizeString(const std::string &sizeString);
 
-// 输入： /a/b/./c/d/../e -> /a/b/c/e
+std::string randomStr(int size, const std::string &valueFrom = "abcdefghijklmnopqrstuvwxyz01345679");
 
 
 namespace FileSystem {
@@ -121,6 +123,8 @@ namespace FileSystem {
 inline void assert(bool require, const std::string &func = "assert", const std::string &reason = "断言失败") {
     if (!require) throw FileSystem::Error{func, reason};
 }
+
+void assertLazy(bool require, const std::string &func, std::function<std::string()> fun);
 
 
 using std::endl;

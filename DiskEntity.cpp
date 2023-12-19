@@ -36,7 +36,7 @@ namespace FileSystem {
                 .append(EmptyNode(UNDEFINED, UNDEFINED, diskSize - FILE_INDEX_START, UNDEFINED, UNDEFINED).toBytes());
 
         _fileLinker.doWithFileO(0, 0, [&](std::ofstream &it) {
-            it.write(reinterpret_cast<const char *>(prefix.toBytes()), (std::streamsize) prefix.size());
+            it.write(reinterpret_cast<const char *>(prefix.data()), (std::streamsize) prefix.size());
         });
     }
 
@@ -353,13 +353,13 @@ namespace FileSystem {
         auto fileSize = _fileLinker.size();
 
         _fileLinker.doWithFileI(0, 0, [&](std::ifstream &it) {
-            prefix = std::string{reinterpret_cast<const char *>(ByteArray().read(it, 8, false).toBytes()), 8};
+            prefix = std::string{reinterpret_cast<const char *>(ByteArray().read(it, 8, false).data()), 8};
 
             stateSize = IByteable::fromBytes<u_int64>(ByteArray().read(it, 8, false));
             sizeGood = stateSize == fileSize;
         });
 
-        assert(prefix == "SakulinF", "DiskEntity::checkFormat", "系统声明错误："+ prefix);
+        assert(prefix == "SakulinF", "DiskEntity::checkFormat", "系统声明错误：" + prefix);
 
         assert(sizeGood, "DiskEntity::checkFormat",
                "大小不相等：文件系统声明 " + std::to_string(stateSize) + " 与 实际大小 " + std::to_string(fileSize));
@@ -432,13 +432,13 @@ namespace FileSystem {
 
         u_int64 target = FILE_INDEX_START;
 
-        while(target != UNDEFINED) {
+        while (target != UNDEFINED) {
             auto node = nodeAt(target);
             res.push_back(node);
 
             if (node.type == NodeType::Empty) {
                 target = node.ptr.empty->nextNode;
-            } else if(node.type == NodeType::File) {
+            } else if (node.type == NodeType::File) {
                 target = node.ptr.file->nextNode;
             } else {
                 throw Error{"DiskEntity::getAll", "Unknown Node Type At " + std::to_string(target)};
@@ -446,6 +446,17 @@ namespace FileSystem {
         }
 
         return res;
+    }
+
+    bool DiskEntity::assertSuperUser(std::string password) {
+
+        std::string sha256{Ly::Sha256::getInstance().getHexMessageDigest(password).data(), 32};
+
+        std::istream *input = _fileLinker.getFileInput(DiskEntity::SUPERUSER_PASSWORD_START, 0);
+
+        std::string r{reinterpret_cast<char *>(ByteArray().read(*input, 32, false).data()), 32};
+
+        return r == sha256;
     }
 
 
