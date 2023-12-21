@@ -29,6 +29,8 @@ public:
 
     std::byte *data();
 
+    u_int64 flatSize();
+
     ByteArray &append(const std::byte *bytes, u_int64 length);
 
     ByteArray &append(const ByteArray &bytes);
@@ -87,12 +89,6 @@ namespace FileSystem {
 
     NodeType getType(std::istream &startPos);
 
-    /**
-     * 如果首个为 delimiter ，返回第一个为空字符串，如果最后一个为 delimiter ，不算
-     * @param input
-     * @param delimiter
-     * @return
-     */
     std::list<std::string> splitString(const std::string &input, char delimiter);
 
     std::string checkPath(const std::string &path);

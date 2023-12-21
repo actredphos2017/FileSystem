@@ -53,6 +53,8 @@ namespace FileSystem {
 
         void upload(const std::list<std::string> &args);
 
+        void chmod(const std::list<std::string> &args);
+
         void download(const std::list<std::string> &args);
 
         void edit(const std::list<std::string> &args);

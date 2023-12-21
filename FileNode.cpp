@@ -69,10 +69,6 @@ namespace FileSystem {
         return res;
     }
 
-    INode::PermissionGroup INode::getPermission() const {
-        return INode::PermissionGroup();
-    }
-
     bool INode::assertPermission(INode::PermissionType _type, INode::Role _role) {
 
         if (_role == Admin) {

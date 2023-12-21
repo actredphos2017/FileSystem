@@ -82,8 +82,6 @@ namespace FileSystem {
 
         bool assertPermission(PermissionType _type, Role _role);
 
-        [[nodiscard]] PermissionGroup getPermission() const;
-
         std::string name{};
         u_int64 size{};
 

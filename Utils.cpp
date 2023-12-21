@@ -84,6 +84,15 @@ ByteArray ByteArray::subByte(u_int64 from, u_int64 to) {
     return res;
 }
 
+u_int64 ByteArray::flatSize() {
+    std::vector<std::byte> bytes{_bytes};
+    if (bytes.empty()) return 0;
+    while (static_cast<char>(bytes.back()) == '\0') {
+        bytes.pop_back();
+    }
+    return bytes.size();
+}
+
 std::pair<std::string, std::list<std::string>> commandTrim(const std::string &cmd) {
     std::string trimmedCmd = cmd;
     size_t start = trimmedCmd.find_first_not_of(" \n\r\t");

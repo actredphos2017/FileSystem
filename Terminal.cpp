@@ -7,6 +7,7 @@
 
 #include <ranges>
 #include <filesystem>
+#include <bitset>
 
 
 #define HELP_CMD_MAX_LENGTH 12
@@ -47,9 +48,13 @@ namespace FileSystem {
 
     void Terminal::putScript(const std::string &script) {
         int line = 0;
+        os << script << endl;
         for (const auto &statement: splitString(script, '\n')) {
+            os << statement << endl;
             line++;
-            if (!putCommand(statement)) {
+            try {
+                putCommand(statement);
+            } catch (Error&) {
                 os << "运行到第 " << line << " 行发生错误！" << endl;
                 break;
             }
@@ -213,6 +218,14 @@ namespace FileSystem {
                 "将身份切换到普通用户",
                 "us\n"
                 "将身份切换到普通用户"
+        };
+
+        router["chmod"] = [this](const auto &args) { chmod(args); };
+        docs["chmod"] = {
+                "设置文件权限（管理员才能执行）",
+                "chmod [2位或6位权限代码] [目标文件]\n"
+                "设置文件权限，权限代码前半部分为管理员权限，后半部分为用户权限\n"
+                "每部分对应的3位分别为 可读、可编辑、可执行"
         };
 
 
@@ -386,7 +399,9 @@ namespace FileSystem {
             runScript(path);
             os << "脚本执行完毕。" << endl;
         } else if (args.front() == "internal") {
-            assert(std::filesystem::exists(path), "Terminal::script", "TODO: 功能未实现");
+
+            putScript(controller.getScript(parseUrl(path)));
+
         } else {
             throw Error{"Terminal::script", "首个参数必须为 external 或 internal ，详见 help script"};
         }
@@ -511,21 +526,32 @@ namespace FileSystem {
 
         auto argSize = assertArgSize(args, {1, 2}, "edit");
 
-        editSession = new FSController::EditSession{controller.editFile(parseUrl(args.front()))};
+        auto targetUrl = parseUrl(args.front());
+
+        auto fileName = targetUrl.back();
+
+        editSession = new FSController::EditSession{controller.editFile(targetUrl)};
 
         tempFileName = tempFolder + randomStr(16);
 
         if (argSize == 2) {
             tempFileName += ("." + args.back());
         } else {
-            tempFileName += ".txt";
+            auto splitParts = splitString(fileName, '.');
+            if (splitParts.size() >= 2) {
+                tempFileName += ("." + splitParts.back());
+            } else {
+                tempFileName += ".txt";
+            }
         }
 
         std::ofstream tempFile{tempFileName, std::ios::out | std::ios::trunc};
 
         assert(tempFile.is_open(), "Terminal::edit", "临时文件创建失败");
 
-        tempFile.write(reinterpret_cast<char *>(editSession->getFileData().data()), editSession->getFileData().size());
+        auto fileData = editSession->getFileData();
+
+        tempFile.write(reinterpret_cast<char *>(fileData.data()), fileData.flatSize());
 
         tempFile.close();
 
@@ -581,14 +607,17 @@ namespace FileSystem {
 
         try {
             editSession->assignEditFinish(ByteArray(reinterpret_cast<std::byte *>(buf), newFileSize));
-        } catch (Error& e){
+        } catch (Error &e) {
             std::filesystem::remove(tempFileName);
             tempFileName = "";
             delete editSession;
             editSession = nullptr;
             throw Error{"Terminal::editdone", std::string{"更新失败！文件写锁已被重置！\n 错误原因："} + e.what()};
         }
-
+        std::filesystem::remove(tempFileName);
+        tempFileName = "";
+        delete editSession;
+        editSession = nullptr;
     }
 
     void Terminal::editcancel(const std::list<std::string> &args) {
@@ -606,6 +635,39 @@ namespace FileSystem {
         delete editSession;
         editSession = nullptr;
 
+    }
+
+    void Terminal::chmod(const std::list<std::string> &args) {
+        assertArgSize(args, {2}, "chmod");
+
+        assert(args.front().size() == 2 || args.front().size() == 6, "Terminal::chmod", "第一个参数必须为2位或6位");
+        unsigned int adminPermissionNum;
+        unsigned int userPermissionNum;
+        if (args.front().size() == 2) {
+            adminPermissionNum = args.front()[0] - '0';
+            assert(adminPermissionNum < 0x0f, "Terminal::chmod", "输入的权限不合规");
+            userPermissionNum = args.front()[1] - '0';
+            assert(userPermissionNum < 0x0f, "Terminal::chmod", "输入的权限不合规");
+        } else {
+            auto permissionStr = args.front();
+
+            adminPermissionNum = 0;
+            for (int i = 0; i < 3; ++i) {
+                adminPermissionNum = adminPermissionNum << 1;
+                assert(permissionStr[i] == '0' || permissionStr[i] == '1', "Terminal::chmod", "输入的权限不合规");
+                adminPermissionNum = adminPermissionNum | (permissionStr[i] == '1');
+            }
+
+            userPermissionNum = 0;
+            for (int i = 3; i < 6; ++i) {
+                userPermissionNum = userPermissionNum << 1;
+                assert(permissionStr[i] == '0' || permissionStr[i] == '1', "Terminal::chmod", "输入的权限不合规");
+                userPermissionNum = userPermissionNum | (permissionStr[i] == '1');
+            }
+        }
+
+        unsigned char permissionCode = (adminPermissionNum << 4) | userPermissionNum;
+        controller.setFilePermission(parseUrl(args.back()), INode::PermissionGroup::fromByte(static_cast<std::byte>(permissionCode)));
     }
 
 

@@ -78,6 +78,10 @@ namespace FileSystem {
 
         void releaseWriteLock(const std::list<std::string> &oldPath);
 
+        void setFilePermission(const std::list<std::string> &_filePath, INode::PermissionGroup permissionGroup);
+
+        std::string getScript(const std::list<std::string> &_filePath);
+
 
 #ifndef FS_DEBUG
     private:

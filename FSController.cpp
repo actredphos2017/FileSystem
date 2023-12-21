@@ -450,7 +450,14 @@ namespace FileSystem {
 
     FSController::EditSession FSController::editFile(const std::list<std::string> &filePath) {
 
-        auto targetFile = _diskEntity->fileAt(getFilePos(filePath));
+        FileNode *targetFile;
+
+        try {
+            targetFile = _diskEntity->fileAt(getFilePos(filePath));
+        } catch (Error &) {
+            this->createFile(filePath, ByteArray(), INode::OpenPermission);
+            targetFile = _diskEntity->fileAt(getFilePos(filePath));
+        }
 
         assert(
                 targetFile->inode.getType() == INode::UserFile,
@@ -516,5 +523,28 @@ namespace FileSystem {
          */
     }
 
+    void
+    FSController::setFilePermission(const std::list<std::string> &_filePath, INode::PermissionGroup permissionGroup) {
+        assert(role == INode::Admin, "FSController::setFilePermission", "需要管理员身份");
+
+        auto filePos = getFilePos(_filePath);
+
+        assert(filePos != UNDEFINED, "FSController::setFilePermission", "目标文件不存在");
+
+        auto file = _diskEntity->fileAt(filePos);
+
+        file->inode.permission = permissionGroup;
+
+        _diskEntity->updateWithoutSizeChange(filePos, *file);
+    }
+
+    std::string FSController::getScript(const std::list<std::string> &_filePath) {
+        auto filePos = getFilePos(_filePath);
+        assert(filePos != UNDEFINED, "FSController::getScript", "目标文件不存在");
+        auto file = _diskEntity->fileAt(filePos);
+        assert(file->inode.assertPermission(INode::Execute, role), "FSController::getScript", "没有足够的权限");
+
+        return std::string{reinterpret_cast<char *>(file->data.data()), file->data.flatSize()};
+    }
 
 } // FileSystem
