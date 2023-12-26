@@ -103,6 +103,10 @@ namespace FileSystem {
               openCounter(openCounter),
               next(next) {}
 
+    bool INode::isEditing() const {
+        return openCounter > 0;
+    }
+
     FileNode::FileNode(u_int64 lastNode, u_int64 nextNode, INode iNode, u_int64 expansionSize, ByteArray data) :
             lastNode(lastNode),
             nextNode(nextNode),

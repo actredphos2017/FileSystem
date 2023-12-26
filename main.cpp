@@ -6,14 +6,14 @@ using namespace FileSystem;
 
 int main() {
 
-    Terminal cs{std::cout};
+    Terminal terminal{std::cout};
 
-    cs.assignEditor("C:/Program Files/Sublime Text/sublime_text.exe");
-    cs.assignTempFolder("Temp/");
+    terminal.assignEditor("C:/Program Files/Sublime Text/sublime_text.exe");
+    terminal.assignTempFolder("Temp/");
 
     while (true) {
         try {
-            cs.enterCommand(std::cin);
+            terminal.enterCommand(std::cin);
         } catch (ExitSignal &) {
             break;
         }

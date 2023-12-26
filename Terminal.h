@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <map>
 #include <functional>
 
 #include "Utils.h"
@@ -16,7 +17,7 @@ namespace FileSystem {
 
     typedef std::unordered_map<std::string, std::function<void(const std::list<std::string> &)>> Router;
 
-    typedef std::unordered_map<std::string, std::pair<std::string, std::string>> DocMap;
+    typedef std::map<std::string, std::pair<std::string, std::string>> DocMap;
 
     class Terminal {
 
@@ -55,8 +56,6 @@ namespace FileSystem {
 
         void chmod(const std::list<std::string> &args);
 
-        void download(const std::list<std::string> &args);
-
         void edit(const std::list<std::string> &args);
 
         void editdone(const std::list<std::string> &args);
@@ -74,6 +73,14 @@ namespace FileSystem {
         void su(const std::list<std::string> &args);
 
         void us(const std::list<std::string> &args);
+
+        void format(const std::list<std::string> &args);
+
+        void login(const std::list<std::string> &args);
+
+        void reg(const std::list<std::string> &args);
+
+        void cat(const std::list<std::string> &args);
 
 
         static void exit(const std::list<std::string> &args);
@@ -93,6 +100,7 @@ namespace FileSystem {
 
         Router router{};
         DocMap docs{};
+
         FSController controller{};
 
         std::string getUrl();

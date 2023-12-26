@@ -44,36 +44,29 @@ namespace FileSystem {
 
     class DiskEntity {
 
+        const static u_int64 DISK_SIZE_START = 8;
         const static u_int64 ROOT_START = 16;
         const static u_int64 EMPTY_START = 24;
         const static u_int64 FILE_INDEX_START = 64;
         const static u_int64 SUPERUSER_PASSWORD_START = 32;
 
     public:
-        // 创建新的虚拟磁盘
         DiskEntity(u_int64 size, std::string path, const std::string &root_password);
 
-        // 加载虚拟磁盘
         explicit DiskEntity(std::string path);
 
-        // 获取虚拟磁盘的根目录头文件地址
         u_int64 root();
 
-        // 设置根目录头文件地址
         void setRoot(u_int64 pos);
 
-        // 获取虚拟磁盘的空闲区（不存在则返回 nullptr）
         EmptyNode *emptyAt(u_int64 position);
 
-        // 获取虚拟磁盘中某个位置的文件（不存在则返回 nullptr）
         FileNode *fileAt(u_int64 position);
 
         NodePtr nodeAt(u_int64 position);
 
-        // 删除虚拟磁盘中某个位置的文件
         void removeFileAt(u_int64 position);
 
-        // 添加新的文件（空间已满则添加失败，返回 false）
         u_int64 addFile(const INode &iNode, ByteArray byteArray);
 
         void updateWithoutSizeChange(u_int64 originLoc, FileNode &newFile);
@@ -90,8 +83,9 @@ namespace FileSystem {
 
         INode fileINodeAt(u_int64 position);
 
-        // 格式化磁盘
         void format(u_int64 diskSize, const std::string &rootPassword);
+
+        void format(const std::string &rootPassword);
 
         std::string getPath() const;
 

@@ -43,6 +43,9 @@ public:
 
     [[nodiscard]] u_int64 size() const;
 
+    std::vector<std::byte>::const_iterator cbegin();
+    std::vector<std::byte>::const_iterator cend();
+
 private:
 
     std::vector<std::byte> _bytes{};

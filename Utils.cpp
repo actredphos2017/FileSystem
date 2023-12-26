@@ -93,6 +93,14 @@ u_int64 ByteArray::flatSize() {
     return bytes.size();
 }
 
+std::vector<std::byte>::const_iterator ByteArray::cbegin() {
+    return _bytes.cbegin();
+}
+
+std::vector<std::byte>::const_iterator ByteArray::cend() {
+    return _bytes.cend();
+}
+
 std::pair<std::string, std::list<std::string>> commandTrim(const std::string &cmd) {
     std::string trimmedCmd = cmd;
     size_t start = trimmedCmd.find_first_not_of(" \n\r\t");

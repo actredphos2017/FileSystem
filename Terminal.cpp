@@ -54,7 +54,7 @@ namespace FileSystem {
             line++;
             try {
                 putCommand(statement);
-            } catch (Error&) {
+            } catch (Error &) {
                 os << "运行到第 " << line << " 行发生错误！" << endl;
                 break;
             }
@@ -222,10 +222,39 @@ namespace FileSystem {
 
         router["chmod"] = [this](const auto &args) { chmod(args); };
         docs["chmod"] = {
-                "设置文件权限（管理员才能执行）",
+                "设置文件权限（管理员）",
                 "chmod [2位或6位权限代码] [目标文件]\n"
                 "设置文件权限，权限代码前半部分为管理员权限，后半部分为用户权限\n"
                 "每部分对应的3位分别为 可读、可编辑、可执行"
+        };
+
+        router["login"] = [this](const auto &args) { login(args); };
+        docs["login"] = {
+                "登录用户",
+                "login [用户名] [密码]\n"
+                "登录用户"
+        };
+
+        router["register"] = [this](const auto &args) { reg(args); };
+        docs["register"] = {
+                "注册用户（管理员）",
+                "register [用户名] [密码]\n"
+                "创建新的用户\n"
+                "管理员命令"
+        };
+
+        router["format"] = [this](const auto &args) { format(args); };
+        docs["format"] = {
+                "格式化硬盘（管理员）",
+                "format [管理员密码]\n"
+                "保持硬盘大小不变，格式化硬盘。"
+        };
+
+        router["cat"] = [this](const auto &args) { cat(args); };
+        docs["cat"] = {
+                "输出文件内容",
+                "cat [文件路径]\n"
+                "保持硬盘大小不变，格式化硬盘。"
         };
 
 
@@ -233,9 +262,9 @@ namespace FileSystem {
 
     std::string Terminal::localPrefixBuilder() {
         if (!controller.good()) {
-            return "[UNLINK] > ";
+            return "[ 未链接 ] > ";
         } else {
-            return "[" + controller.getDiskTitle() + "] " + getUrl() + " > ";
+            return "[ " + controller.getTitle() + " ] " + getUrl() + " > ";
         }
     }
 
@@ -639,6 +668,7 @@ namespace FileSystem {
 
     void Terminal::chmod(const std::list<std::string> &args) {
         assertArgSize(args, {2}, "chmod");
+        assertConnection();
 
         assert(args.front().size() == 2 || args.front().size() == 6, "Terminal::chmod", "第一个参数必须为2位或6位");
         unsigned int adminPermissionNum;
@@ -667,7 +697,34 @@ namespace FileSystem {
         }
 
         unsigned char permissionCode = (adminPermissionNum << 4) | userPermissionNum;
-        controller.setFilePermission(parseUrl(args.back()), INode::PermissionGroup::fromByte(static_cast<std::byte>(permissionCode)));
+        controller.setFilePermission(parseUrl(args.back()),
+                                     INode::PermissionGroup::fromByte(static_cast<std::byte>(permissionCode)));
+    }
+
+    void Terminal::format(const std::list<std::string> &args) {
+        assertArgSize(args, {1}, "format");
+
+        assertConnection();
+
+        controller.format(args.front());
+    }
+
+    void Terminal::login(const std::list<std::string> &args) {
+        assertArgSize(args, {2}, "login");
+        assertConnection();
+        assert(controller.login(args.front(), args.back()), "Terminal::login", "密码错误！");
+    }
+
+    void Terminal::reg(const std::list<std::string> &args) {
+        assertArgSize(args, {2}, "register");
+        assertConnection();
+        controller.registerUser(args.front(), args.back());
+    }
+
+    void Terminal::cat(const std::list<std::string> &args) {
+        assertConnection();
+        assertArgSize(args, {1}, "cat");
+        os << controller.cat(parseUrl(args.front())) << endl;
     }
 
 

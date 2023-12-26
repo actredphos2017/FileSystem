@@ -6,6 +6,7 @@
 #define FILESYSTEM_FSCONTROLLER_H
 
 #include "DiskEntity.h"
+#include "UserTable.h"
 
 namespace FileSystem {
 
@@ -49,7 +50,7 @@ namespace FileSystem {
 
         void setPath(std::string path);
 
-        [[nodiscard]] std::string getDiskTitle() const;
+        [[nodiscard]] std::string getTitle() const;
 
         u_int64 createDir(const std::list<std::string> &_folderPath, std::string fileName,
                           INode::PermissionGroup permission = INode::OpenPermission);
@@ -82,12 +83,27 @@ namespace FileSystem {
 
         std::string getScript(const std::list<std::string> &_filePath);
 
+        void format(std::string adminPassword);
 
-#ifndef FS_DEBUG
+        void registerUser(std::string username, const std::string& password);
+
+        FileSystem::UserTable getUsers();
+
+        std::list<std::string> getUserMapPath();
+
+        bool setUsers(UserTable users);
+
+        bool login(std::string username, std::string password);
+
+        std::string cat(const std::list<std::string> &_filePath);
+
+        void assertLogin();
+
     private:
-#endif
 
         INode::Role role = INode::Role::User;
+
+        UserItem* onlineUser{};
 
         void
         removeDirRecursion(u_int64 position, const std::list<std::string> &_folderPath, std::ostream *os = nullptr);
@@ -95,7 +111,6 @@ namespace FileSystem {
         [[nodiscard]] u_int64 getFilePos(const std::list<std::string> &_filePath) const;
 
         DiskEntity *_diskEntity{nullptr};
-
     };
 
 } // FileSystem

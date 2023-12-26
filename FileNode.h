@@ -66,6 +66,11 @@ namespace FileSystem {
                 {true, true, true}
         };
 
+        constexpr static const PermissionGroup AdminOnlyPermission = {
+                {true, true, true},
+                {false, false, false}
+        };
+
         enum Type {
             Unknown = -1,
             UserFile = 0,
@@ -89,6 +94,8 @@ namespace FileSystem {
         std::byte type{};
         int openCounter{};
         u_int64 next{};
+
+        bool isEditing() const;
 
         INode() = default;
 

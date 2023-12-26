@@ -459,5 +459,9 @@ namespace FileSystem {
         return r == sha256;
     }
 
+    void DiskEntity::format(const std::string &rootPassword) {
+        format(_fileLinker.readAt<u_int64>(0, 8), rootPassword);
+    }
+
 
 } // FileSystem

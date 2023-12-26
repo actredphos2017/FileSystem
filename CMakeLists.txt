@@ -22,4 +22,6 @@ add_executable(
         SHA256.cpp
         SHA256.h
         main.cpp
+        UserTable.cpp
+        UserTable.h
 )

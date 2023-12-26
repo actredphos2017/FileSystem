@@ -3,6 +3,7 @@
 //
 
 #include "FSController.h"
+#include "UserTable.h"
 
 #include <ranges>
 #include <utility>
@@ -43,6 +44,8 @@ namespace FileSystem {
 
     void FSController::create(u_int64 size, std::string path, const std::string &root_password) {
         _diskEntity = new DiskEntity{size, std::move(path), root_password};
+        changeRole(INode::Admin, root_password);
+        createFile(getUserMapPath(), {}, INode::AdminOnlyPermission);
     }
 
     void FSController::setPath(std::string path) {
@@ -98,12 +101,23 @@ namespace FileSystem {
         return headPos;
     }
 
-    std::string FSController::getDiskTitle() const {
-        return _diskEntity->getPath();
+    std::string FSController::getTitle() const {
+        std::stringstream builder;
+        builder << _diskEntity->getPath() << " @";
+        if (role == INode::Admin) {
+            builder << "超级用户";
+        } else if (onlineUser != nullptr) {
+            builder << onlineUser->username;
+        } else {
+            builder << "未登录";
+        }
+        return builder.str();
     }
 
     u_int64 FSController::createDir(const std::list<std::string> &folderPath, std::string fileName,
                                     INode::PermissionGroup permission) {
+
+        assertLogin();
 
         auto dirFiles = getDir(fixPath(folderPath));
 
@@ -192,6 +206,7 @@ namespace FileSystem {
     FSController::createFile(const std::list<std::string> &_folderPath, std::string fileName, const ByteArray &data,
                              INode::PermissionGroup permission) {
 
+        assertLogin();
 
         auto dirFiles = getDir(fixPath(_folderPath));
 
@@ -279,6 +294,8 @@ namespace FileSystem {
     }
 
     void FSController::removeFile(const std::list<std::string> &_filePath, bool ignoreFolder, std::ostream *os) {
+
+        assertLogin();
 
         if (os != nullptr) {
             *os << "删除： " << pathStr(_filePath, false) << endl;
@@ -395,6 +412,8 @@ namespace FileSystem {
 
     void FSController::removeDir(const std::list<std::string> &_folderPath, std::ostream *os) {
 
+        assertLogin();
+
         auto folderPath = fixPath(_folderPath);
 
         assert(!folderPath.empty(), "FSController::removeDir", "无法删除根目录");
@@ -450,14 +469,18 @@ namespace FileSystem {
 
     FSController::EditSession FSController::editFile(const std::list<std::string> &filePath) {
 
-        FileNode *targetFile;
+        assertLogin();
+
+        u_int64 filePos;
 
         try {
-            targetFile = _diskEntity->fileAt(getFilePos(filePath));
+            filePos = getFilePos(filePath);
         } catch (Error &) {
             this->createFile(filePath, ByteArray(), INode::OpenPermission);
-            targetFile = _diskEntity->fileAt(getFilePos(filePath));
+            filePos = getFilePos(filePath);
         }
+
+        FileNode *targetFile = _diskEntity->fileAt(filePos);
 
         assert(
                 targetFile->inode.getType() == INode::UserFile,
@@ -470,6 +493,16 @@ namespace FileSystem {
                 "FSController::editFile",
                 "没有足够的权限"
         );
+
+        assert(
+                !targetFile->inode.isEditing(),
+                "FSController::editFile",
+                "该文件正在被其他用户写"
+        );
+
+        targetFile->inode.openCounter = 1;
+
+        _diskEntity->updateWithoutSizeChange(filePos, *targetFile);
 
         return {
                 targetFile->data,
@@ -503,6 +536,8 @@ namespace FileSystem {
             const ByteArray &data,
             INode::PermissionGroup permission) {
 
+        assertLogin();
+
         auto path = _filePath;
 
         auto fileName = path.back();
@@ -513,18 +548,21 @@ namespace FileSystem {
 
     bool
     FSController::updateFile(const ByteArray &newData, const INode &oldINode, const std::list<std::string> &oldPath) {
+        assertLogin();
         removeFile(oldPath);
         return createFile(oldPath, newData, oldINode.permission) != UNDEFINED;
     }
 
     void FSController::releaseWriteLock(const std::list<std::string> &oldPath) {
-        /**
-         * TODO
-         */
+        auto filePos = getFilePos(oldPath);
+        auto file = _diskEntity->fileAt(filePos);
+        file->inode.openCounter = 0;
+        _diskEntity->updateWithoutSizeChange(filePos, *file);
     }
 
     void
     FSController::setFilePermission(const std::list<std::string> &_filePath, INode::PermissionGroup permissionGroup) {
+        assertLogin();
         assert(role == INode::Admin, "FSController::setFilePermission", "需要管理员身份");
 
         auto filePos = getFilePos(_filePath);
@@ -539,12 +577,58 @@ namespace FileSystem {
     }
 
     std::string FSController::getScript(const std::list<std::string> &_filePath) {
+        assertLogin();
         auto filePos = getFilePos(_filePath);
         assert(filePos != UNDEFINED, "FSController::getScript", "目标文件不存在");
         auto file = _diskEntity->fileAt(filePos);
         assert(file->inode.assertPermission(INode::Execute, role), "FSController::getScript", "没有足够的权限");
 
         return std::string{reinterpret_cast<char *>(file->data.data()), file->data.flatSize()};
+    }
+
+    std::list<std::string> FSController::getUserMapPath() {
+        return {"user.map"};
+    }
+
+    void FSController::format(std::string adminPassword) {
+        assert(role == INode::Admin, "FSController::format", "权限不足");
+        _diskEntity->format(adminPassword);
+        changeRole(INode::Admin, adminPassword);
+        createFile(getUserMapPath(), {}, INode::AdminOnlyPermission);
+    }
+
+    UserTable FSController::getUsers() {
+        return *UserTable::parse(_diskEntity->fileAt(getFilePos(getUserMapPath()))->data);
+    }
+
+    bool FSController::setUsers(UserTable users) {
+        assert(role == INode::Admin, "FSController::setUsers", "权限不足");
+        return editFile(getUserMapPath()).assignEditFinish(users.toBytes());
+    }
+
+    void FSController::registerUser(std::string username, const std::string &password) {
+        assert(role == INode::Admin, "FSController::registerUser", "权限不足");
+        auto users = getUsers();
+        assert(users.pushUser(UserItem(std::move(username), password)), "FSController::registerUser",
+               "已存在相同用户名的用户！");
+        assert(setUsers(users), "FSController::registerUser", "剩余磁盘大小不足以添加新用户！");
+    }
+
+    bool FSController::login(std::string username, std::string password) {
+        changeRole(INode::User);
+        onlineUser = getUsers().login(std::move(username), std::move(password));
+        return onlineUser != nullptr;
+    }
+
+    void FSController::assertLogin() {
+        assert(role == INode::Admin || onlineUser != nullptr, "FSController::assertLogin", "未登录！");
+    }
+
+    std::string FSController::cat(const std::list<std::string> &_filePath) {
+        assertLogin();
+        auto file = _diskEntity->fileAt(getFilePos(_filePath));
+        assert(file->inode.assertPermission(INode::Read, role), "FSController::cat", "没有足够的权限！");
+        return std::string{reinterpret_cast<const char*>(file->data.data()), file->data.size()};
     }
 
 } // FileSystem
